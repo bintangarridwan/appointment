@@ -6,6 +6,14 @@ require('isomorphic-fetch');
 require('dotenv').config();
 
 const app = express();
+app.use((req, res, next) => {
+    const auth = req.headers.authorization;
+    if (auth === 'Basic YWRtaW46MTIz') {
+        return next();
+    }
+    res.setHeader('WWW-Authenticate', 'Basic realm="Aman"');
+    res.status(401).send('Butuh Login');
+});
 app.use(cors());
 app.use(express.json());
 const path = require('path');
