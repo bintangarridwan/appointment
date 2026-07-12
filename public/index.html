@@ -373,6 +373,19 @@
         .btn-cancel-meeting { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
         .btn-cancel-meeting:hover { background: #ef4444; color: #fff; }
         
+        /* Responsive */
+        @media (max-width: 768px) {
+            body { height: auto; overflow: auto; display: block; }
+            .dashboard { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+            .main-wrapper { overflow: visible; }
+            .content { padding: 12px; overflow: visible; }
+            .stats-row { grid-template-columns: 1fr; }
+            .logs-grid { grid-template-columns: 1fr; }
+            .fc .fc-toolbar { flex-direction: column; gap: 8px; text-align: center; }
+            .fc .fc-toolbar-title { font-size: 18px; }
+            .modal-card { width: 90%; }
+        }
     </style>
 </head>
 <body>
