@@ -8,7 +8,6 @@ require('dotenv').config();
 const app = express();
 app.use((req, res, next) => {
     const auth = req.headers.authorization;
-    // Username: crk, Password: SuksesCRK
     if (auth === 'Basic Y3JrOlN1a3Nlc0NSSw==') {
         return next();
     }
