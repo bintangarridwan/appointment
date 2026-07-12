@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- FullCalendar Premium -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js'></script>
+    <style>
+        :root {
+            --primary: #EBEBEB;
+            --primary-glow: rgba(235, 235, 235, 0.4);
+            --bg-base: #FFFFFF;
+            --bg-panel: #FAFAFA;
+            --bg-card: #FFFFFF;
+            --text-main: #000000;
+            --text-muted: #4b5563;
+            --border: rgba(0, 0, 0, 0.1);
+            --glass-blur: blur(12px);
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            margin: 0; 
+            background: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        /* Layout */
+        .dashboard { display: flex; width: 100%; height: 100%; }
+        
+        .sidebar {
+            width: 280px;
+            background: var(--bg-panel);
+            backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+        }
+
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .topbar {
+            height: 60px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 10;
+        }
+
+        .content {
+            flex: 1;
+            padding: 16px 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Typography & Components */
+        .logo { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 700; color: var(--text-main); }
+        .logo i { color: var(--primary); }
+
+        .booking-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .booking-card h3 { margin: 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+        
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+        }
+
+        button.btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+            border: 1px solid #1d4ed8;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        button.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
+        button.btn-primary:active { transform: translateY(0); }
+
+        /* Stats Row */
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        
+        .stat-card {
+            background: var(--bg-panel);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-card:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+        
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.05);
+            color: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        .stat-info h4 { margin: 0; color: var(--text-muted); font-size: 12px; font-weight: 500; }
+        .stat-info p { margin: 4px 0 0 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
+
+        /* Calendar */
+        .calendar-wrapper {
+            background: var(--bg-panel);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            flex: 0 0 auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            min-height: 400px;
+        }
+
+        /* Active Logs */
+        .active-logs-wrapper {
+            background: var(--bg-panel);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .active-logs-wrapper h4 { margin: 0 0 16px 0; color: var(--text-main); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .logs-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        .log-card {
+            background: rgba(0,0,0,0.02);
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 8px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .log-card:hover { transform: translateY(-2px); }
+        .log-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 4px;
+        }
+        .log-card.active::before { background: #ef4444; } 
+        .log-card.upcoming::before { background: #f59e0b; } 
+        .log-card.inactive::before { background: #10b981; } 
+        
+        .log-room-name { font-weight: 600; color: var(--text-main); font-size: 15px; margin-bottom: 6px; }
+        .log-status { font-size: 12px; font-weight: 500; margin-bottom: 12px; display: inline-block; padding: 2px 8px; border-radius: 12px; }
+        .log-status.active { background: rgba(239,68,68,0.1); color: #ef4444; }
+        .log-status.upcoming { background: rgba(245,158,11,0.1); color: #f59e0b; }
+        .log-status.inactive { background: rgba(16,185,129,0.1); color: #10b981; }
+        
+        .log-detail { font-size: 13px; color: var(--text-muted); margin: 6px 0; display: flex; align-items: flex-start; gap: 8px; }
+        .log-detail i { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+        .log-title { color: var(--text-main); font-weight: 500; }
+        .next-booking { margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 12px; color: var(--text-muted); }
+        .next-booking strong { color: var(--text-main); }
+
+        /* FullCalendar Light Theme Overrides */
+        .fc { --fc-border-color: rgba(0,0,0,0.1); --fc-page-bg-color: transparent; --fc-neutral-bg-color: rgba(0,0,0,0.02); }
+        .fc-theme-standard th { background: rgba(0,0,0,0.03) !important; padding: 12px 0; color: var(--text-muted); font-weight: 500; }
+        .fc .fc-toolbar-title { font-weight: 700; font-size: 22px; color: var(--text-main); }
+        
+        .fc .fc-button-primary {
+            background: rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            text-transform: capitalize;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .fc .fc-button-primary:not(:disabled):hover { background: rgba(0,0,0,0.1); border-color: var(--border); }
+        .fc .fc-button-primary:not(:disabled):active, .fc .fc-button-primary:not(:disabled).fc-button-active {
+            background: var(--border); border-color: var(--border); color: #000;
+        }
+        .fc-h-event {
+            border: none; border-radius: 6px; padding: 4px 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s; cursor: pointer;
+            height: 38px !important; /* Fixed height for exactly 2 lines */
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .fc-h-event:hover { transform: scale(1.02); z-index: 5; }
+        .fc-event-main { display: flex; flex-direction: column; width: 100%; overflow: hidden; }
+        
+        .fc-timeline-slot-cushion { color: var(--text-muted); }
+        .fc-datagrid-cell-main { color: var(--text-main); font-weight: 500; }
+        .fc-daygrid-day-number { color: var(--text-main); text-decoration: none; padding: 4px 8px; }
+        .fc-col-header-cell-cushion { color: var(--text-main); text-decoration: none; padding: 8px; }
+        .fc-license-message { display: none !important; }
+        
+        /* Autocomplete */
+        .autocomplete-items {
+            position: absolute;
+            top: 100%; left: 0; right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            z-index: 99;
+            max-height: 200px;
+            overflow-y: auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .autocomplete-items div {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            color: var(--text-main);
+            font-size: 13px;
+        }
+        .autocomplete-items div:hover { background: rgba(0, 0, 0, 0.05); }
+        .autocomplete-items div small { display: block; color: var(--text-muted); font-size: 11px; }
+
+        /* Chip Toggle */
+        .chip-toggle {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 13px; font-weight: 500;
+            transition: all 0.2s;
+            user-select: none;
+            width: fit-content;
+        }
+        .chip-toggle.active {
+            background: rgba(0, 0, 0, 0.1);
+            border-color: var(--primary);
+            color: var(--text-main);
+        }
+        .chip-toggle.active i { color: var(--text-main); }
+        .chip-toggle::after { content: ' (Off)'; font-size: 11px; opacity: 0.7; }
+        .chip-toggle.active::after { content: ' (On)'; font-size: 11px; opacity: 1; color: var(--text-main); }
+
+        /* Toast Notification (Center Card) */
+        #toast-container {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+            pointer-events: none;
+        }
+        .toast {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0,0,0,0.1);
+            border-top: 5px solid var(--primary);
+            padding: 32px 40px;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.2);
+            color: var(--text-main);
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            font-size: 18px; font-weight: 500; text-align: center;
+            opacity: 0; transform: scale(0.9) translateY(20px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+            max-width: 450px; width: 90%;
+        }
+        .toast.show { opacity: 1; transform: scale(1) translateY(0); }
+        .toast.error { border-top-color: #ef4444; }
+        .toast i { width: 48px; height: 48px; }
+        .toast.error i { color: #ef4444; }
+        .toast.success i { color: var(--primary); }
+
+        /* Topbar User */
+        .user-profile { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #818cf8); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 10000; opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; width: 350px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            transform: scale(0.9); transition: transform 0.3s;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .modal-overlay.show .modal-card { transform: scale(1); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+        .modal-title { font-size: 16px; font-weight: 600; color: var(--text-main); margin: 0; }
+        .modal-close { cursor: pointer; color: var(--text-muted); }
+        .modal-close:hover { color: var(--text-main); }
+        .modal-body { display: flex; flex-direction: column; gap: 12px; color: var(--text-muted); font-size: 13px; }
+        .modal-body strong { color: var(--text-main); display: block; margin-bottom: 2px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .btn-cancel-meeting { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .btn-cancel-meeting:hover { background: #ef4444; color: #fff; }
+        
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- Event Detail Modal -->
+<div id="eventModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Meeting Details</h3>
+            <i data-lucide="x" class="modal-close" onclick="closeEventModal()"></i>
+        </div>
+        <div class="modal-body">
+            <div>
+                <strong>Date</strong>
+                <span id="modalDate"></span>
+            </div>
+            <div>
+                <strong>Time</strong>
+                <span id="modalTime"></span>
+            </div>
+            <div>
+                <strong>Meeting Subject</strong>
+                <span id="modalSubject"></span>
+            </div>
+            <div>
+                <strong>Room</strong>
+                <span id="modalRoom"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel-meeting" id="btnCancelMeeting">Cancel Meeting</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEventContext = null;
+    function closeEventModal() {
+        document.getElementById('eventModal').classList.remove('show');
+    }
+</script>
+
+<div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <i data-lucide="layers"></i> RoomSync
+        </div>
+        
+        <div class="booking-card">
+            <h3><i data-lucide="calendar-plus"></i> New Booking</h3>
+            <div class="form-group">
+                <label>Select Room</label>
+                <select id="room-select"></select>
+            </div>
+            <div class="form-group" style="position: relative;">
+                <label>Requester</label>
+                <input type="email" id="organizer" placeholder="name@domain.com" autocomplete="off">
+                <div id="autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            <div class="form-group">
+                <label>Meeting Subject</label>
+                <input type="text" id="subject" placeholder="Weekly Sync">
+            </div>
+            <div class="form-group" style="position: relative;">
+                <label>Invite Attendees</label>
+                <input type="text" id="attendees" placeholder="email1@dom.com, email2@dom.com" autocomplete="off">
+                <div id="attendees-autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="date">
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Start Time</label>
+                    <input type="time" id="start">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>End Time</label>
+                    <input type="time" id="end">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 4px; margin-bottom: 8px;">
+                <div id="teams-toggle" class="chip-toggle" title="Teams Meeting is Off" onclick="this.classList.toggle('active'); this.title = this.classList.contains('active') ? 'Teams Meeting is On' : 'Teams Meeting is Off';">
+                    <i data-lucide="video" style="width: 16px; height: 16px;"></i> Teams Meeting
+                </div>
+            </div>
+            <button class="btn-primary" id="book-btn" onclick="bookRoom()">
+                <i data-lucide="check-circle"></i> Book Now
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+
+        <main class="content">
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i data-lucide="door-open"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Rooms</h4>
+                        <p id="stat-rooms">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i data-lucide="calendar-check"></i></div>
+                    <div class="stat-info">
+                        <h4>Status</h4>
+                        <p>Active</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i data-lucide="users"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Meetings Today</h4>
+                        <p id="today-meetings-count">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar -->
+            <div class="calendar-wrapper">
+                <div id="calendar"></div>
+            </div>
+            
+            <!-- Active Logs -->
+            <div class="active-logs-wrapper" id="active-logs-wrapper" style="display: none;">
+                <h4><i data-lucide="activity"></i> Current Room Status</h4>
+                <div id="active-logs" class="logs-grid"></div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    // Initialize Icons
+    lucide.createIcons();
+
+    let calendar;
+    const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899'];
+
+    // Autocomplete Logic
+    const organizerInput = document.getElementById('organizer');
+    const autoList = document.getElementById('autocomplete-list');
+    let debounceTimer;
+
+    organizerInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const val = this.value;
+        if (!val || val.length < 2) {
+            autoList.style.display = 'none';
+            return;
+        }
+        
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(val)}`);
+                const users = await res.json();
+                autoList.innerHTML = '';
+                
+                if (users.length > 0) {
+                    users.forEach(u => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<b>${u.name}</b><small>${u.email}</small>`;
+                        div.addEventListener('click', () => {
+                            organizerInput.value = u.email;
+                            autoList.style.display = 'none';
+                        });
+                        autoList.appendChild(div);
+                    });
+                    autoList.style.display = 'block';
+                } else {
+                    autoList.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== organizerInput) {
+            autoList.style.display = 'none';
+        }
+    });
+
+    // Attendees Autocomplete Logic
+    const attendeesInput = document.getElementById('attendees');
+    const attAutoList = document.getElementById('attendees-autocomplete-list');
+    let attDebounceTimer;
+
+    attendeesInput.addEventListener('input', function() {
+        clearTimeout(attDebounceTimer);
+        const fullVal = this.value;
+        const parts = fullVal.split(',');
+        const currentQuery = parts[parts.length - 1].trim();
+
+        if (!currentQuery || currentQuery.length < 2) {
+            attAutoList.style.display = 'none';
+            return;
+        }
+        
+        attDebounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(currentQuery)}`);
+                const users = await res.json();
+                attAutoList.innerHTML = '';
+                
+                if (users.length > 0) {
+                    users.forEach(u => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<b>${u.name}</b><small>${u.email}</small>`;
+                        div.addEventListener('click', () => {
+                            parts[parts.length - 1] = ' ' + u.email;
+                            attendeesInput.value = parts.join(',').trim() + ', ';
+                            attAutoList.style.display = 'none';
+                            attendeesInput.focus();
+                        });
+                        attAutoList.appendChild(div);
+                    });
+                    attAutoList.style.display = 'block';
+                } else {
+                    attAutoList.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== attendeesInput) {
+            attAutoList.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            // Load Rooms
+            const res = await fetch('/api/rooms');
+            if (!res.ok) throw new Error("Gagal mengambil data ruang");
+            const rooms = await res.json();
+            
+            document.getElementById('stat-rooms').innerText = rooms.length;
+
+            const select = document.getElementById('room-select');
+            const resources = rooms.map((room, index) => {
+                const opt = document.createElement('option');
+                opt.value = room.id;
+                opt.innerText = room.name;
+                select.appendChild(opt);
+
+                return {
+                    id: room.id,
+                    title: room.name,
+                    eventColor: colors[index % colors.length]
+                };
+            });
+
+            // Initialize Calendar
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+                initialView: 'resourceTimelineDay',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'resourceTimelineDay,dayGridMonth'
+                },
+                height: 'auto',
+                buttonText: {
+                    today: 'Today',
+                    resourceTimelineDay: 'Timeline',
+                    dayGridMonth: 'Month'
+                },
+                slotMinTime: '07:00:00',
+                slotMaxTime: '20:00:00',
+                slotDuration: '01:00:00',
+                resourceAreaWidth: '20%',
+                resourceAreaHeaderContent: 'Rooms',
+                resources: resources,
+                events: function(info, successCallback, failureCallback) {
+                    fetch(`/api/events?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            successCallback(data);
+                            updateRoomStatusLogs(data, resources);
+                            const todayStr = new Date().toDateString();
+                            const todayCount = data.filter(e => new Date(e.start).toDateString() === todayStr).length;
+                            document.getElementById('today-meetings-count').innerText = todayCount;
+                        })
+                        .catch(err => failureCallback(err));
+                },
+                eventContent: function(arg) {
+                    return {
+                        html: `<div style="display:flex; flex-direction:column; gap:2px; width:100%; padding:0 2px;">
+                                 <div style="font-size: 11px; opacity: 0.9; display:flex; align-items:center; gap:4px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${arg.event.extendedProps.organizer || arg.event.extendedProps.organizerEmail || 'N/A'}">
+                                     <i data-lucide="user" style="width:10px; height:10px; flex-shrink: 0;"></i>
+                                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${arg.event.extendedProps.organizer || arg.event.extendedProps.organizerEmail || 'N/A'}</span>
+                                 </div>
+                                 <div style="font-size: 13px; font-weight: 600; line-height: 1.2; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${arg.event.title}">${arg.event.title}</div>
+                               </div>`
+                    };
+                },
+                eventDidMount: function(arg) {
+                    lucide.createIcons({ root: arg.el });
+                },
+                eventClick: function(arg) {
+                    const event = arg.event;
+                    currentEventContext = event;
+                    
+                    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    document.getElementById('modalDate').innerText = event.start.toLocaleDateString(undefined, dateOptions);
+                    
+                    const startStr = event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const endStr = event.end ? event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    document.getElementById('modalTime').innerText = startStr + ' - ' + endStr;
+                    
+                    document.getElementById('modalSubject').innerText = event.title;
+                    
+                    const resource = event.getResources()[0];
+                    document.getElementById('modalRoom').innerText = resource ? resource.title : (event.extendedProps.roomEmail || 'N/A');
+                    
+                    document.getElementById('eventModal').classList.add('show');
+                },
+                nowIndicator: true,
+            });
+            calendar.render();
+            
+            document.getElementById('btnCancelMeeting').addEventListener('click', () => {
+                if (!currentEventContext) return;
+                const event = currentEventContext;
+                const eventId = event.id;
+                const roomEmail = event.extendedProps.roomEmail;
+                const orgEmail = event.extendedProps.organizerEmail;
+                
+                closeEventModal();
+                
+                if (!roomEmail) {
+                    showToast("Cannot delete: Room Email is missing.", "error");
+                    return;
+                }
+                
+                const userEmail = prompt(`Masukkan email pembuat meeting (Requester) untuk membatalkan meeting "${event.title}":`);
+                if (userEmail === null) return;
+                
+                if (!orgEmail || userEmail.trim().toLowerCase() !== orgEmail.toLowerCase()) {
+                    showToast("Akses ditolak! Hanya Requester yang dapat membatalkan meeting ini.", "error");
+                    return;
+                }
+                
+                if (confirm(`Email terverifikasi. Anda yakin membatalkan meeting ini?`)) {
+                    fetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
+                        method: 'DELETE'
+                    })
+                    .then(res => {
+                        if (!res.ok) {
+                            return res.text().then(text => { throw new Error(text) });
+                        }
+                        showToast("Meeting berhasil dibatalkan!", "success");
+                        calendar.refetchEvents();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast(err.message, "error");
+                    });
+                }
+            });
+        } catch (err) {
+            console.error("Gagal inisialisasi kalender:", err);
+        }
+    });
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+        toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${message}</span>`;
+        container.appendChild(toast);
+        lucide.createIcons({ root: toast });
+        
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    async function bookRoom() {
+        const roomId = document.getElementById('room-select').value;
+        const subject = document.getElementById('subject').value;
+        const dateStr = document.getElementById('date').value;
+        const startTimeStr = document.getElementById('start').value;
+        const endTimeStr = document.getElementById('end').value;
+        
+        const start = (dateStr && startTimeStr) ? `${dateStr}T${startTimeStr}` : '';
+        const end = (dateStr && endTimeStr) ? `${dateStr}T${endTimeStr}` : '';
+        const organizerEmail = document.getElementById('organizer').value;
+        const attendeesStr = document.getElementById('attendees').value;
+        const isOnline = document.getElementById('teams-toggle').classList.contains('active');
+
+        if (!roomId || !subject || !start || !end || !organizerEmail) {
+            return showToast("Harap lengkapi semua data (terutama Requester)!", "error");
+        }
+
+        const btn = document.getElementById('book-btn');
+        const ogText = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Memproses...';
+        lucide.createIcons({ root: btn });
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/api/rooms/${roomId}/book`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject, 
+                    start: new Date(start).toISOString(), 
+                    end: new Date(end).toISOString(), 
+                    organizerEmail,
+                    attendees: attendeesStr,
+                    isOnline
+                })
+            });
+
+            if (res.ok) {
+                showToast("Room booked successfully!", "success");
+                if(calendar) calendar.refetchEvents();
+                document.getElementById('organizer').value = '';
+                document.getElementById('subject').value = '';
+                document.getElementById('attendees').value = '';
+                document.getElementById('date').value = '';
+                document.getElementById('start').value = '';
+                document.getElementById('end').value = '';
+                document.getElementById('teams-toggle').classList.remove('active');
+                document.getElementById('teams-toggle').title = 'Teams Meeting is Off';
+            } else {
+                const err = await res.json();
+                showToast("Booking failed: " + err.error, "error");
+            }
+        } catch (error) {
+            showToast("An error occurred: " + error.message, "error");
+        } finally {
+            btn.innerHTML = ogText;
+            btn.disabled = false;
+        }
+    }
+    function updateRoomStatusLogs(events, resources) {
+        const wrapper = document.getElementById('active-logs-wrapper');
+        const container = document.getElementById('active-logs');
+        if (!events || events.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+        wrapper.style.display = 'block';
+        container.innerHTML = '';
+        
+        const now = new Date();
+        
+        resources.forEach(room => {
+            const roomEvents = events.filter(e => e.resourceId === room.id).map(e => ({
+                ...e,
+                startObj: new Date(e.start),
+                endObj: new Date(e.end)
+            })).sort((a, b) => a.startObj - b.startObj);
+            
+            let activeEvent = null;
+            let nextEvent = null;
+            
+            for (let i = 0; i < roomEvents.length; i++) {
+                const ev = roomEvents[i];
+                if (now >= ev.startObj && now <= ev.endObj) {
+                    activeEvent = ev;
+                } else if (ev.startObj > now && !nextEvent) {
+                    nextEvent = ev;
+                }
+            }
+            
+            let statusClass = 'inactive';
+            let statusText = 'Available';
+            if (activeEvent) {
+                statusClass = 'active';
+                statusText = 'In Use';
+            } else if (nextEvent && nextEvent.startObj.toDateString() === now.toDateString()) {
+                statusClass = 'upcoming';
+                statusText = 'Upcoming';
+            }
+            
+            const card = document.createElement('div');
+            card.className = `log-card ${statusClass}`;
+            
+            let html = `
+                <div class="log-room-name">${room.title}</div>
+                <div class="log-status ${statusClass}">${statusText}</div>
+            `;
+            
+            const timeOpts = {hour: '2-digit', minute:'2-digit'};
+            
+            if (activeEvent) {
+                html += `
+                    <div class="log-detail"><i data-lucide="clock"></i> <span>${activeEvent.startObj.toLocaleTimeString([], timeOpts)} - ${activeEvent.endObj.toLocaleTimeString([], timeOpts)}</span></div>
+                    <div class="log-detail"><i data-lucide="file-text"></i> <span class="log-title">${activeEvent.title}</span></div>
+                    <div class="log-detail"><i data-lucide="user"></i> <span>${activeEvent.organizer || activeEvent.organizerEmail || '-'}</span></div>
+                `;
+            } else if (statusClass === 'inactive') {
+                html += `
+                    <div class="log-detail" style="opacity:0.6;"><i data-lucide="info"></i> <span>Room is currently empty</span></div>
+                `;
+            }
+            
+            if (nextEvent) {
+                const isToday = nextEvent.startObj.toDateString() === now.toDateString();
+                const dayStr = isToday ? 'Today' : nextEvent.startObj.toLocaleDateString();
+                html += `
+                    <div class="next-booking">
+                        Next: <strong>${nextEvent.title}</strong><br>
+                        ${dayStr}, ${nextEvent.startObj.toLocaleTimeString([], timeOpts)} - ${nextEvent.endObj.toLocaleTimeString([], timeOpts)}
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = html;
+            container.appendChild(card);
+        });
+        
+        lucide.createIcons({ root: container });
+    }
+</script>
+</body>
+</html>
