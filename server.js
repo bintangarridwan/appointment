@@ -6,14 +6,7 @@ require('isomorphic-fetch');
 require('dotenv').config();
 
 const app = express();
-app.use((req, res, next) => {
-    const auth = req.headers.authorization;
-    if (auth === 'Basic Y3JrOlN1a3Nlc0NSSw==') {
-        return next();
-    }
-    res.setHeader('WWW-Authenticate', 'Basic realm="Aman"');
-    res.status(401).send('Butuh Login');
-});
+
 app.use(cors());
 app.use(express.json());
 const path = require('path');
@@ -51,6 +44,13 @@ const rooms = [
 
 app.get('/api/rooms', (req, res) => {
     res.json(rooms);
+});
+
+app.get('/api/config', (req, res) => {
+    res.json({
+        clientId: process.env.CLIENT_ID,
+        tenantId: process.env.TENANT_ID
+    });
 });
 
 // Mendapatkan kalender events untuk sebuah room
@@ -99,7 +99,7 @@ app.get('/api/events', async (req, res) => {
                         startDateTime: start,
                         endDateTime: end
                     })
-                    .select('subject,start,end,organizer')
+                    .select('subject,start,end,organizer,attendees')
                     .get();
 
                 const formattedEvents = response.value.map(e => ({
@@ -110,7 +110,12 @@ app.get('/api/events', async (req, res) => {
                     start: e.start.dateTime + 'Z', // Convert to UTC ISO
                     end: e.end.dateTime + 'Z',
                     organizer: e.organizer?.emailAddress?.name || e.organizer?.emailAddress?.address || '',
-                    organizerEmail: e.organizer?.emailAddress?.address || ''
+                    organizerEmail: e.organizer?.emailAddress?.address || '',
+                    attendeeCount: e.attendees ? e.attendees.filter(a => a.type !== 'resource').length : 0,
+                    attendeesList: e.attendees ? e.attendees.filter(a => a.type !== 'resource').map(a => ({
+                        name: a.emailAddress.name || a.emailAddress.address,
+                        status: a.status ? a.status.response : 'unknown'
+                    })) : []
                 }));
                 allEvents = allEvents.concat(formattedEvents);
             } catch (err) {
@@ -233,6 +238,58 @@ app.get('/api/users/search', async (req, res) => {
         res.json(users);
     } catch (error) {
         console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cek ketersediaan attendees
+app.post('/api/users/schedule', async (req, res) => {
+    try {
+        const { emails, startTime, endTime } = req.body;
+        if (!emails || !emails.length || !startTime || !endTime) {
+            return res.status(400).json({ error: 'Missing emails, startTime, or endTime' });
+        }
+
+        const client = await getGraphClient();
+        
+        const scheduleRequest = {
+            schedules: emails,
+            startTime: { dateTime: startTime, timeZone: 'UTC' },
+            endTime: { dateTime: endTime, timeZone: 'UTC' },
+            availabilityViewInterval: 30
+        };
+
+        // Gunakan salah satu email room sebagai base path endpoint
+        const response = await client.api(`/users/${rooms[0].email}/calendar/getSchedule`)
+            .post(scheduleRequest);
+
+        res.json(response.value);
+    } catch (error) {
+        console.error('Error getSchedule:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint untuk Address Book
+app.get('/api/users/directory', async (req, res) => {
+    try {
+        const client = await getGraphClient();
+        const response = await client.api('/users')
+            .select('displayName,mail,jobTitle,department')
+            .top(100)
+            .get();
+        
+        const users = response.value
+            .filter(u => u.mail)
+            .map(u => ({
+                name: u.displayName || '-',
+                email: u.mail || '-',
+                title: u.jobTitle || '-',
+                department: u.department || '-'
+            }));
+        res.json(users);
+    } catch (error) {
+        console.error("Directory error:", error.message);
         res.status(500).json({ error: error.message });
     }
 });

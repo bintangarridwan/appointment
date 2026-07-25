@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Dashboard</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- FullCalendar Premium -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js'></script>
+    <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- Global Loader Overlay -->
+<div id="global-loader" class="global-loader-overlay">
+    <div class="spinner"></div>
+    <h3 style="color: #1e293b; font-size: 18px;">Signing you out...</h3>
+    <p style="color: #64748b; font-size: 14px;">Please wait.</p>
+</div>
+
+<!-- Event Detail Modal -->
+<div id="eventModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title">Meeting Details</h3>
+            <i data-lucide="x" class="modal-close" onclick="closeEventModal()"></i>
+        </div>
+        <div class="modal-body">
+            <div>
+                <strong>Date</strong>
+                <span id="modalDate"></span>
+            </div>
+            <div>
+                <strong>Time</strong>
+                <span id="modalTime"></span>
+            </div>
+            <div>
+                <strong>Meeting Subject</strong>
+                <span id="modalSubject"></span>
+            </div>
+            <div>
+                <strong>Room</strong>
+                <span id="modalRoom"></span>
+            </div>
+            <div>
+                <strong>Attendees</strong>
+                <span id="modalAttendees"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel-meeting" id="btnCancelMeeting">Cancel Meeting</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentEventContext = null;
+    function closeEventModal() {
+        document.getElementById('eventModal').classList.remove('show');
+    }
+</script>
+
+<!-- Address Book Modal -->
+<div id="addressBookModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 700px; width: 90%;">
+        <div class="modal-header">
+            <h3 class="modal-title">Address Book</h3>
+            <i data-lucide="x" class="modal-close" onclick="closeAddressBook()"></i>
+        </div>
+        <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding: 0; -webkit-overflow-scrolling: touch; transform: translate3d(0,0,0); will-change: transform;">
+            <div style="padding: 8px 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end;">
+                <input type="text" id="addressBookSearch" placeholder="Search name or email..." style="width: 220px; padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit;" onkeyup="filterAddressBook()">
+            </div>
+            <div id="addressBookLoading" style="padding: 20px; text-align: center;">Loading...</div>
+            <table id="addressBookTable" style="width: 100%; text-align: left; border-collapse: collapse; display: none; font-size: 13px;">
+                <thead style="background: #f8fafc; position: sticky; top: 51px;">
+                    <tr>
+                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Name & Email</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Title / Dept</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Status</th>
+                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">Add</th>
+                    </tr>
+                </thead>
+                <tbody id="addressBookList"></tbody>
+            </table>
+            <div id="addressBookPagination" style="padding: 10px; display: none; justify-content: space-between; align-items: center; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 13px;">
+                <button type="button" id="btnPrevPage" onclick="changeAddressBookPage(-1)" style="padding: 4px 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; border-radius: 4px;">Previous</button>
+                <span id="addressBookPageInfo">Page 1 / 1</span>
+                <button type="button" id="btnNextPage" onclick="changeAddressBookPage(1)" style="padding: 4px 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; border-radius: 4px;">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <i data-lucide="layers"></i> RoomSync
+        </div>
+        
+        <div id="auth-section" class="booking-card" style="margin-bottom: 4px; display: flex; flex-direction: column; gap: 8px; padding: 12px;">
+            <div id="auth-user-info" style="font-size:14px; font-weight: 500; text-align: center; word-break: break-word;">Loading...</div>
+            <button class="btn-primary" id="logout-btn" onclick="signOut()" style="background:#ef4444; border-color:#ef4444;">
+                <i data-lucide="log-out"></i> Sign Out
+            </button>
+        </div>
+        
+        <div class="booking-card">
+            <h3><i data-lucide="calendar-plus"></i> New Booking</h3>
+            <div class="form-group">
+                <label>Select Room</label>
+                <select id="room-select"></select>
+            </div>
+            <div class="form-group" style="position: relative;">
+                <label>Requester</label>
+                <input type="email" id="organizer" placeholder="name@citarasakuliner.com" autocomplete="off" disabled>
+                <div id="autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            <div class="form-group">
+                <label>Meeting Subject</label>
+                <input type="text" id="subject" placeholder="Weekly Sync">
+            </div>
+            <div class="form-group" style="position: relative;">
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    Invite Attendees
+                    <button type="button" onclick="openAddressBook()" style="background: #e2e8f0; border: none; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; color: #475569; display: flex; align-items: center; gap: 4px;"><i data-lucide="users" style="width: 12px; height: 12px;"></i> Address Book</button>
+                </label>
+                <input type="text" id="attendees" placeholder="email@citarasakuliner.com" autocomplete="off">
+                <div id="attendees-autocomplete-list" class="autocomplete-items"></div>
+            </div>
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="date">
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Start Time</label>
+                    <input type="time" id="start">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>End Time</label>
+                    <input type="time" id="end">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 4px; margin-bottom: 8px;">
+                <div id="teams-toggle" class="chip-toggle" title="Teams Meeting is Off" onclick="this.classList.toggle('active'); this.title = this.classList.contains('active') ? 'Teams Meeting is On' : 'Teams Meeting is Off';">
+                    <i data-lucide="video" style="width: 16px; height: 16px;"></i> Teams Meeting
+                </div>
+            </div>
+            <button class="btn-primary" id="book-btn" onclick="bookRoom()">
+                <i data-lucide="check-circle"></i> Book Now
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+
+        <main class="content">
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i data-lucide="door-open"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Rooms</h4>
+                        <p id="stat-rooms">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i data-lucide="calendar-check"></i></div>
+                    <div class="stat-info">
+                        <h4>Status</h4>
+                        <p>Active</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i data-lucide="users"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Meetings Today</h4>
+                        <p id="today-meetings-count">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar -->
+            <div class="calendar-wrapper">
+                <div id="calendar"></div>
+            </div>
+            
+            <!-- Active Logs -->
+            <div class="active-logs-wrapper" id="active-logs-wrapper" style="display: none;">
+                <h4><i data-lucide="activity"></i> Current Room Status</h4>
+                <div id="active-logs" class="logs-grid"></div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    // Initialize Icons
+    lucide.createIcons();
+
+    let myMSALObj;
+    
+    async function initAuth() {
+        try {
+            const res = await fetch('/api/config');
+            const configData = await res.json();
+            const msalConfig = {
+                auth: {
+                    clientId: configData.clientId,
+                    authority: `https://login.microsoftonline.com/${configData.tenantId}`,
+                    redirectUri: window.location.origin
+                }
+            };
+            myMSALObj = new msal.PublicClientApplication(msalConfig);
+            await myMSALObj.initialize();
+            
+            const currentAccounts = myMSALObj.getAllAccounts();
+            if (currentAccounts.length > 0) {
+                handleResponse(currentAccounts[0]);
+            } else {
+                window.location.href = '/';
+            }
+        } catch (e) {
+            console.error("Auth init error:", e);
+        }
+    }
+
+    initAuth();
+
+    function handleResponse(account) {
+        if (account) {
+            myMSALObj.setActiveAccount(account);
+            document.getElementById('auth-user-info').innerText = `Selamat Datang ${account.name}`;
+            
+            // Set the organizer input default value to logged in user
+            const orgInput = document.getElementById('organizer');
+            if (orgInput && !orgInput.value) {
+                orgInput.value = account.username;
+            }
+        }
+    }
+
+    function signOut() {
+        const logoutRequest = {
+            account: myMSALObj.getActiveAccount(),
+            mainWindowRedirectUri: window.location.origin
+        };
+        myMSALObj.logoutPopup(logoutRequest).then(() => {
+            // Show loader and delay for 5 seconds
+            document.getElementById('global-loader').classList.add('show');
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 5000);
+        });
+    }
+
+    let calendar;
+    const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899'];
+
+    // Autocomplete Logic
+    const organizerInput = document.getElementById('organizer');
+    const autoList = document.getElementById('autocomplete-list');
+    let debounceTimer;
+
+    organizerInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const val = this.value;
+        if (!val || val.length < 2) {
+            autoList.style.display = 'none';
+            return;
+        }
+        
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(val)}`);
+                const users = await res.json();
+                autoList.innerHTML = '';
+                
+                if (users.length > 0) {
+                    users.forEach(u => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<b>${u.name}</b><small>${u.email}</small>`;
+                        div.addEventListener('click', () => {
+                            organizerInput.value = u.email;
+                            autoList.style.display = 'none';
+                        });
+                        autoList.appendChild(div);
+                    });
+                    autoList.style.display = 'block';
+                } else {
+                    autoList.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== organizerInput) {
+            autoList.style.display = 'none';
+        }
+    });
+
+    // Attendees Autocomplete Logic
+    const attendeesInput = document.getElementById('attendees');
+    const attAutoList = document.getElementById('attendees-autocomplete-list');
+    let attDebounceTimer;
+
+    attendeesInput.addEventListener('input', function() {
+        clearTimeout(attDebounceTimer);
+        const fullVal = this.value;
+        const parts = fullVal.split(',');
+        const currentQuery = parts[parts.length - 1].trim();
+
+        if (!currentQuery || currentQuery.length < 2) {
+            attAutoList.style.display = 'none';
+            return;
+        }
+        
+        attDebounceTimer = setTimeout(async () => {
+            try {
+                const dateStr = document.getElementById('date').value;
+                const startTimeStr = document.getElementById('start').value;
+                const endTimeStr = document.getElementById('end').value;
+
+                const res = await fetch(`/api/users/search?q=${encodeURIComponent(currentQuery)}`);
+                const users = await res.json();
+                
+                if (users.length > 0 && dateStr && startTimeStr && endTimeStr) {
+                    const start = new Date(`${dateStr}T${startTimeStr}`).toISOString();
+                    const end = new Date(`${dateStr}T${endTimeStr}`).toISOString();
+                    const emails = users.map(u => u.email);
+                    
+                    try {
+                        const schedRes = await fetch('/api/users/schedule', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ emails, startTime: start, endTime: end })
+                        });
+                        if (schedRes.ok) {
+                            const schedData = await schedRes.json();
+                            users.forEach(u => {
+                                const userSched = schedData.find(s => s.scheduleId.toLowerCase() === u.email.toLowerCase());
+                                if (userSched && userSched.scheduleItems && userSched.scheduleItems.length > 0) {
+                                    u.status = userSched.scheduleItems[0].status; // busy, tentative, dll
+                                } else {
+                                    u.status = 'free';
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Schedule fetch error:', e);
+                    }
+                }
+
+                attAutoList.innerHTML = '';
+                
+                if (users.length > 0) {
+                    users.forEach(u => {
+                        const div = document.createElement('div');
+                        let statusHtml = '';
+                        if (u.status) {
+                            const color = u.status === 'free' ? '#10b981' : (u.status === 'busy' ? '#ef4444' : '#f59e0b');
+                            statusHtml = `<span style="float:right; font-size:11px; font-weight:bold; color:${color}; padding:2px 6px; border-radius:4px; background:${color}20;">${u.status.toUpperCase()}</span>`;
+                        }
+                        div.innerHTML = `<b>${u.name}</b> ${statusHtml}<br><small>${u.email}</small>`;
+                        div.addEventListener('click', () => {
+                            parts[parts.length - 1] = ' ' + u.email;
+                            attendeesInput.value = parts.join(',').trim() + ', ';
+                            attAutoList.style.display = 'none';
+                            attendeesInput.focus();
+                        });
+                        attAutoList.appendChild(div);
+                    });
+                    attAutoList.style.display = 'block';
+                } else {
+                    attAutoList.style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== attendeesInput) {
+            attAutoList.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            // Load Rooms
+            const res = await fetch('/api/rooms');
+            if (!res.ok) throw new Error("Gagal mengambil data ruang");
+            const rooms = await res.json();
+            
+            document.getElementById('stat-rooms').innerText = rooms.length;
+
+            const select = document.getElementById('room-select');
+            const resources = rooms.map((room, index) => {
+                const opt = document.createElement('option');
+                opt.value = room.id;
+                opt.innerText = room.name;
+                select.appendChild(opt);
+
+                return {
+                    id: room.id,
+                    title: room.name,
+                    eventColor: colors[index % colors.length]
+                };
+            });
+
+            // Initialize Calendar
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+                initialView: 'resourceTimelineDay',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'resourceTimelineDay,dayGridMonth'
+                },
+                height: 'auto',
+                buttonText: {
+                    today: 'Today',
+                    resourceTimelineDay: 'Timeline',
+                    dayGridMonth: 'Month'
+                },
+                slotMinTime: '07:00:00',
+                slotMaxTime: '20:00:00',
+                slotDuration: '01:00:00',
+                resourceAreaWidth: '20%',
+                resourceAreaHeaderContent: 'Rooms',
+                resources: resources,
+                events: function(info, successCallback, failureCallback) {
+                    fetch(`/api/events?start=${encodeURIComponent(info.startStr)}&end=${encodeURIComponent(info.endStr)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            successCallback(data);
+                            updateRoomStatusLogs(data, resources);
+                            const todayStr = new Date().toDateString();
+                            const todayCount = data.filter(e => new Date(e.start).toDateString() === todayStr).length;
+                            document.getElementById('today-meetings-count').innerText = todayCount;
+                        })
+                        .catch(err => failureCallback(err));
+                },
+                eventContent: function(arg) {
+                    return {
+                        html: `<div style="display:flex; flex-direction:column; gap:2px; width:100%; padding:0 2px;">
+                                 <div style="font-size: 11px; opacity: 0.9; display:flex; align-items:center; gap:4px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${arg.event.extendedProps.organizer || arg.event.extendedProps.organizerEmail || 'N/A'}">
+                                     <i data-lucide="user" style="width:10px; height:10px; flex-shrink: 0;"></i>
+                                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${arg.event.extendedProps.organizer || arg.event.extendedProps.organizerEmail || 'N/A'}</span>
+                                 </div>
+                                 <div style="font-size: 13px; font-weight: 600; line-height: 1.2; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${arg.event.title}">${arg.event.title}</div>
+                               </div>`
+                    };
+                },
+                eventDidMount: function(arg) {
+                    lucide.createIcons({ root: arg.el });
+                },
+                eventClick: function(arg) {
+                    const event = arg.event;
+                    currentEventContext = event;
+                    
+                    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    document.getElementById('modalDate').innerText = event.start.toLocaleDateString(undefined, dateOptions);
+                    
+                    const startStr = event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const endStr = event.end ? event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+                    document.getElementById('modalTime').innerText = startStr + ' - ' + endStr;
+                    
+                    document.getElementById('modalSubject').innerText = event.title;
+                    
+                    const resource = event.getResources()[0];
+                    document.getElementById('modalRoom').innerText = resource ? resource.title : (event.extendedProps.roomEmail || 'N/A');
+                    
+                    const attendees = event.extendedProps.attendeesList || [];
+                    let attendeesHtml = 'None';
+                    if (attendees.length > 0) {
+                        attendeesHtml = attendees.map(a => {
+                            let badgeColor = '#6b7280';
+                            let statusText = a.status || 'unknown';
+                            if (statusText === 'accepted' || statusText === 'busy') badgeColor = '#10b981';
+                            else if (statusText === 'declined') badgeColor = '#ef4444';
+                            else if (statusText === 'tentativelyAccepted') { badgeColor = '#f59e0b'; statusText = 'tentative'; }
+                            else if (statusText === 'organizer') badgeColor = '#3b82f6';
+                            return `<div>${a.name} <span style="font-size:10px; font-weight:bold; color:${badgeColor}; padding:2px 6px; border-radius:4px; background:${badgeColor}20; margin-left:4px;">${statusText.toUpperCase()}</span></div>`;
+                        }).join('');
+                    }
+                    document.getElementById('modalAttendees').innerHTML = attendeesHtml;
+                    
+                    document.getElementById('eventModal').classList.add('show');
+                },
+                nowIndicator: true,
+            });
+            calendar.render();
+            
+            document.getElementById('btnCancelMeeting').addEventListener('click', () => {
+                if (!currentEventContext) return;
+                const event = currentEventContext;
+                const eventId = event.id;
+                const roomEmail = event.extendedProps.roomEmail;
+                const orgEmail = event.extendedProps.organizerEmail;
+                
+                closeEventModal();
+                
+                if (!roomEmail) {
+                    showToast("Cannot delete: Room Email is missing.", "error");
+                    return;
+                }
+                
+                const userEmail = prompt(`Masukkan email pembuat meeting (Requester) untuk membatalkan meeting "${event.title}":`);
+                if (userEmail === null) return;
+                
+                if (!orgEmail || userEmail.trim().toLowerCase() !== orgEmail.toLowerCase()) {
+                    showToast("Akses ditolak! Hanya Requester yang dapat membatalkan meeting ini.", "error");
+                    return;
+                }
+                
+                if (confirm(`Email terverifikasi. Anda yakin membatalkan meeting ini?`)) {
+                    fetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
+                        method: 'DELETE'
+                    })
+                    .then(res => {
+                        if (!res.ok) {
+                            return res.text().then(text => { throw new Error(text) });
+                        }
+                        showToast("Meeting berhasil dibatalkan!", "success");
+                        calendar.refetchEvents();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showToast(err.message, "error");
+                    });
+                }
+            });
+        } catch (err) {
+            console.error("Gagal inisialisasi kalender:", err);
+        }
+    });
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? 'check-circle' : 'alert-circle';
+        toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${message}</span>`;
+        container.appendChild(toast);
+        lucide.createIcons({ root: toast });
+        
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    async function bookRoom() {
+        const roomId = document.getElementById('room-select').value;
+        const subject = document.getElementById('subject').value;
+        const dateStr = document.getElementById('date').value;
+        const startTimeStr = document.getElementById('start').value;
+        const endTimeStr = document.getElementById('end').value;
+        
+        const start = (dateStr && startTimeStr) ? `${dateStr}T${startTimeStr}` : '';
+        const end = (dateStr && endTimeStr) ? `${dateStr}T${endTimeStr}` : '';
+        const organizerEmail = document.getElementById('organizer').value;
+        const attendeesStr = document.getElementById('attendees').value;
+        const isOnline = document.getElementById('teams-toggle').classList.contains('active');
+
+        if (!roomId || !subject || !start || !end || !organizerEmail) {
+            return showToast("Harap lengkapi semua data (terutama Requester)!", "error");
+        }
+
+        const btn = document.getElementById('book-btn');
+        const ogText = btn.innerHTML;
+        btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Memproses...';
+        lucide.createIcons({ root: btn });
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/api/rooms/${roomId}/book`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject, 
+                    start: new Date(start).toISOString(), 
+                    end: new Date(end).toISOString(), 
+                    organizerEmail,
+                    attendees: attendeesStr,
+                    isOnline
+                })
+            });
+
+            if (res.ok) {
+                showToast("Room booked successfully!", "success");
+                if(calendar) calendar.refetchEvents();
+                document.getElementById('organizer').value = '';
+                document.getElementById('subject').value = '';
+                document.getElementById('attendees').value = '';
+                document.getElementById('date').value = '';
+                document.getElementById('start').value = '';
+                document.getElementById('end').value = '';
+                document.getElementById('teams-toggle').classList.remove('active');
+                document.getElementById('teams-toggle').title = 'Teams Meeting is Off';
+            } else {
+                const err = await res.json();
+                showToast("Booking failed: " + err.error, "error");
+            }
+        } catch (error) {
+            showToast("An error occurred: " + error.message, "error");
+        } finally {
+            btn.innerHTML = ogText;
+            btn.disabled = false;
+        }
+    }
+    function updateRoomStatusLogs(events, resources) {
+        const wrapper = document.getElementById('active-logs-wrapper');
+        const container = document.getElementById('active-logs');
+        if (!events || events.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+        wrapper.style.display = 'block';
+        container.innerHTML = '';
+        
+        const now = new Date();
+        
+        resources.forEach(room => {
+            const roomEvents = events.filter(e => e.resourceId === room.id).map(e => ({
+                ...e,
+                startObj: new Date(e.start),
+                endObj: new Date(e.end)
+            })).sort((a, b) => a.startObj - b.startObj);
+            
+            let activeEvent = null;
+            let nextEvent = null;
+            
+            for (let i = 0; i < roomEvents.length; i++) {
+                const ev = roomEvents[i];
+                if (now >= ev.startObj && now <= ev.endObj) {
+                    activeEvent = ev;
+                } else if (ev.startObj > now && !nextEvent) {
+                    nextEvent = ev;
+                }
+            }
+            
+            let statusClass = 'inactive';
+            let statusText = 'Available';
+            if (activeEvent) {
+                statusClass = 'active';
+                statusText = 'In Use';
+            } else if (nextEvent && nextEvent.startObj.toDateString() === now.toDateString()) {
+                statusClass = 'upcoming';
+                statusText = 'Upcoming';
+            }
+            
+            const card = document.createElement('div');
+            card.className = `log-card ${statusClass}`;
+            
+            let html = `
+                <div class="log-room-name">${room.title}</div>
+                <div class="log-status ${statusClass}">${statusText}</div>
+            `;
+            
+            const timeOpts = {hour: '2-digit', minute:'2-digit'};
+            
+            if (activeEvent) {
+                html += `
+                    <div class="log-detail"><i data-lucide="clock"></i> <span>${activeEvent.startObj.toLocaleTimeString([], timeOpts)} - ${activeEvent.endObj.toLocaleTimeString([], timeOpts)}</span></div>
+                    <div class="log-detail"><i data-lucide="file-text"></i> <span class="log-title">${activeEvent.title}</span></div>
+                    <div class="log-detail"><i data-lucide="user"></i> <span>${activeEvent.organizer || activeEvent.organizerEmail || '-'}</span></div>
+                    <div class="log-detail"><i data-lucide="users"></i> <span>${activeEvent.attendeeCount || 0} Attendees</span></div>
+                `;
+            } else if (statusClass === 'inactive') {
+                html += `
+                    <div class="log-detail" style="opacity:0.6;"><i data-lucide="info"></i> <span>Room is currently empty</span></div>
+                `;
+            }
+            
+            if (nextEvent) {
+                const isToday = nextEvent.startObj.toDateString() === now.toDateString();
+                const dayStr = isToday ? 'Today' : nextEvent.startObj.toLocaleDateString();
+                html += `
+                    <div class="next-booking">
+                        Next: <strong>${nextEvent.title}</strong><br>
+                        ${dayStr}, ${nextEvent.startObj.toLocaleTimeString([], timeOpts)} - ${nextEvent.endObj.toLocaleTimeString([], timeOpts)}
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = html;
+            container.appendChild(card);
+        });
+        
+        lucide.createIcons({ root: container });
+    }
+    let allAddressBookUsers = [];
+    let filteredAddressBookUsers = [];
+    let addressBookPage = 1;
+    const addressBookPageSize = 10;
+
+    function closeAddressBook() {
+        document.getElementById('addressBookModal').classList.remove('show');
+    }
+
+    async function openAddressBook() {
+        document.getElementById('addressBookModal').classList.add('show');
+        document.getElementById('addressBookLoading').style.display = 'block';
+        document.getElementById('addressBookTable').style.display = 'none';
+
+        try {
+            const dateStr = document.getElementById('date').value;
+            const startTimeStr = document.getElementById('start').value;
+            const endTimeStr = document.getElementById('end').value;
+
+            const res = await fetch('/api/users/directory');
+            let allUsers = await res.json();
+            
+            // Filter hanya email @citarasakuliner.com
+            let users = allUsers.filter(u => u.email && u.email.toLowerCase().endsWith('@citarasakuliner.com'));
+            
+            // Default status
+            users.forEach(u => u.status = 'unknown');
+
+            if (users.length > 0 && dateStr && startTimeStr && endTimeStr) {
+                const start = new Date(`${dateStr}T${startTimeStr}`).toISOString();
+                const end = new Date(`${dateStr}T${endTimeStr}`).toISOString();
+                const emails = users.map(u => u.email);
+                
+                // Chunk requests to 20 emails per batch (Graph API limit)
+                const chunkSize = 20;
+                for (let i = 0; i < emails.length; i += chunkSize) {
+                    const chunk = emails.slice(i, i + chunkSize);
+                    try {
+                        const schedRes = await fetch('/api/users/schedule', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ emails: chunk, startTime: start, endTime: end })
+                        });
+                        if (schedRes.ok) {
+                            const schedData = await schedRes.json();
+                            users.forEach(u => {
+                                const userSched = schedData.find(s => s.scheduleId.toLowerCase() === u.email.toLowerCase());
+                                if (userSched) {
+                                    if (userSched.scheduleItems && userSched.scheduleItems.length > 0) {
+                                        u.status = userSched.scheduleItems[0].status; // busy, tentative
+                                    } else {
+                                        u.status = 'free';
+                                    }
+                                }
+                            });
+                        }
+                    } catch(e) { console.error('Schedule fetch failed for chunk', e); }
+                }
+            }
+
+            allAddressBookUsers = users;
+            filteredAddressBookUsers = [...users];
+            addressBookPage = 1;
+            
+            document.getElementById('addressBookLoading').style.display = 'none';
+            document.getElementById('addressBookTable').style.display = 'table';
+            document.getElementById('addressBookPagination').style.display = 'flex';
+            
+            renderAddressBookPage();
+            
+        } catch (error) {
+            document.getElementById('addressBookLoading').innerHTML = 'Failed to load address book.';
+        }
+    }
+
+    function addFromAddressBook(email) {
+        const inp = document.getElementById('attendees');
+        let current = inp.value.trim();
+        if (current.length > 0 && !current.endsWith(',')) {
+            current += ', ';
+        }
+        if (!current.includes(email)) {
+            inp.value = current + email + ', ';
+            showToast(email + ' ditambahkan', 'success');
+        }
+    }
+
+    function changeAddressBookPage(delta) {
+        const maxPage = Math.ceil(filteredAddressBookUsers.length / addressBookPageSize) || 1;
+        addressBookPage += delta;
+        if (addressBookPage < 1) addressBookPage = 1;
+        if (addressBookPage > maxPage) addressBookPage = maxPage;
+        renderAddressBookPage();
+    }
+
+    function renderAddressBookPage() {
+        const tbody = document.getElementById('addressBookList');
+        tbody.innerHTML = '';
+        
+        const maxPage = Math.ceil(filteredAddressBookUsers.length / addressBookPageSize) || 1;
+        document.getElementById('addressBookPageInfo').innerText = `Page ${addressBookPage} / ${maxPage}`;
+        
+        document.getElementById('btnPrevPage').disabled = addressBookPage === 1;
+        document.getElementById('btnNextPage').disabled = addressBookPage === maxPage;
+
+        const startIdx = (addressBookPage - 1) * addressBookPageSize;
+        const endIdx = startIdx + addressBookPageSize;
+        const pageUsers = filteredAddressBookUsers.slice(startIdx, endIdx);
+        
+        pageUsers.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #f1f5f9';
+            
+            let statusHtml = '-';
+            if (u.status) {
+                const color = u.status === 'free' ? '#10b981' : (u.status === 'busy' ? '#ef4444' : (u.status === 'unknown' ? '#94a3b8' : '#f59e0b'));
+                statusHtml = `<span style="font-size:11px; font-weight:bold; color:${color}; padding:2px 6px; border-radius:4px; background:${color}20;">${u.status.toUpperCase()}</span>`;
+            }
+
+            tr.innerHTML = `
+                <td style="padding: 10px;"><b>${u.name}</b><br><span style="color:#64748b; font-size: 11px;">${u.email}</span></td>
+                <td style="padding: 10px;">${u.title}<br><span style="color:#64748b; font-size: 11px;">${u.department}</span></td>
+                <td style="padding: 10px;">${statusHtml}</td>
+                <td style="padding: 10px; text-align: center;">
+                    <button type="button" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="addFromAddressBook('${u.email}')">Add</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterAddressBook() {
+        const input = document.getElementById('addressBookSearch');
+        const filter = input.value.toLowerCase();
+        
+        filteredAddressBookUsers = allAddressBookUsers.filter(u => 
+            (u.name && u.name.toLowerCase().includes(filter)) || 
+            (u.email && u.email.toLowerCase().includes(filter))
+        );
+        
+        addressBookPage = 1;
+        renderAddressBookPage();
+    }
+
+</script>
+</body>
+</html>
