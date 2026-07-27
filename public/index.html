@@ -7,7 +7,7 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@1.27.0"></script>
     <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
     <link rel="stylesheet" href="style.css">
     <style>
@@ -111,11 +111,8 @@
             try {
                 const loginResponse = await myMSALObj.loginPopup({ scopes: ["User.Read"] });
                 if (loginResponse.account) {
-                    // Show loader and delay for 5 seconds
                     document.getElementById('global-loader').classList.add('show');
-                    setTimeout(() => {
-                        window.location.href = '/dashboard.html';
-                    }, 5000);
+                    window.location.href = '/dashboard.html';
                 }
             } catch (error) {
                 console.error(error);

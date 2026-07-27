@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const jwksRsa = require('jwks-rsa');
 const msal = require('@azure/msal-node');
 const { Client } = require('@microsoft/microsoft-graph-client');
 require('isomorphic-fetch');
@@ -7,10 +10,73 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : false
+}));
 app.use(express.json());
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+
+const bookingLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many booking attempts, please try again later.' }
+});
+
+app.use('/api', apiLimiter);
+
+// JWT Auth middleware — validates Azure AD tokens
+const jwksClient = jwksRsa({
+    jwksUri: `https://login.microsoftonline.com/${process.env.TENANT_ID}/discovery/v2.0/keys`,
+    cache: true,
+    cacheMaxAge: 86400000
+});
+
+function getSigningKey(header, callback) {
+    jwksClient.getSigningKey(header.kid, (err, key) => {
+        if (err) return callback(err);
+        callback(null, key.getPublicKey());
+    });
+}
+
+function authMiddleware(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, getSigningKey, {
+        audience: process.env.CLIENT_ID,
+        issuer: `https://login.microsoftonline.com/${process.env.TENANT_ID}/v2.0`,
+        algorithms: ['RS256']
+    }, (err, decoded) => {
+        if (err) {
+            console.error('Token validation error:', err.message);
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+        req.user = decoded;
+        next();
+    });
+}
+
+// Apply auth to all /api routes except GET requests (public)
+app.use('/api', (req, res, next) => {
+    if (req.method === 'GET') return next();
+    authMiddleware(req, res, next);
+});
 
 const config = {
     auth: {
@@ -34,13 +100,11 @@ async function getGraphClient() {
     });
 }
 
-// Ganti email di bawah ini dengan email asli untuk Room A, B, C, D di tenant Anda
-const rooms = [
-    { id: 'A', name: 'Ruang Kuah LT 1', email: process.env.ROOM_A_EMAIL || 'RM.Kuah@citarasakuliner.com' },
-    { id: 'B', name: 'Ruang Beef LT 2', email: process.env.ROOM_B_EMAIL || 'RM.Beef@citarasakuliner.com' },
-    { id: 'C', name: 'Ruang Bojot LT 3', email: process.env.ROOM_C_EMAIL || 'RM.Bojot@citarasakuliner.com' },
-    { id: 'D', name: 'Ruang Mozza LT 3', email: process.env.ROOM_D_EMAIL || 'RM.Mozza@citarasakuliner.com' },
-];
+// Room config dari rooms.json, email bisa di-override via env var
+const rooms = require('./rooms.json').map(room => ({
+    ...room,
+    email: process.env[`ROOM_${room.id}_EMAIL`] || room.email
+}));
 
 app.get('/api/rooms', (req, res) => {
     res.json(rooms);
@@ -102,21 +166,36 @@ app.get('/api/events', async (req, res) => {
                     .select('subject,start,end,organizer,attendees')
                     .get();
 
-                const formattedEvents = response.value.map(e => ({
-                    id: e.id,
-                    resourceId: room.id, // Untuk FullCalendar Resource View
-                    roomEmail: room.email,
-                    title: e.subject || 'Busy',
-                    start: e.start.dateTime + 'Z', // Convert to UTC ISO
-                    end: e.end.dateTime + 'Z',
-                    organizer: e.organizer?.emailAddress?.name || e.organizer?.emailAddress?.address || '',
-                    organizerEmail: e.organizer?.emailAddress?.address || '',
+                const formattedEvents = response.value.map(e => {
+                    let orgName = e.organizer?.emailAddress?.name || e.organizer?.emailAddress?.address || '';
+                    let orgEmail = e.organizer?.emailAddress?.address || '';
+                    
+                    // Jika organizer adalah ruangan itu sendiri (karena bypass invite),
+                    // anggap attendee manusia pertama sebagai requester sebenarnya
+                    if (orgEmail.toLowerCase() === room.email.toLowerCase()) {
+                        const firstHuman = e.attendees?.find(a => a.type !== 'resource' && a.emailAddress?.address?.toLowerCase() !== room.email.toLowerCase());
+                        if (firstHuman) {
+                            orgName = firstHuman.emailAddress.name || firstHuman.emailAddress.address;
+                            orgEmail = firstHuman.emailAddress.address;
+                        }
+                    }
+
+                    return {
+                        id: e.id,
+                        resourceId: room.id, // Untuk FullCalendar Resource View
+                        roomEmail: room.email,
+                        title: e.subject || 'Busy',
+                        start: e.start.dateTime + 'Z', // Convert to UTC ISO
+                        end: e.end.dateTime + 'Z',
+                        organizer: orgName,
+                        organizerEmail: orgEmail,
                     attendeeCount: e.attendees ? e.attendees.filter(a => a.type !== 'resource').length : 0,
                     attendeesList: e.attendees ? e.attendees.filter(a => a.type !== 'resource').map(a => ({
                         name: a.emailAddress.name || a.emailAddress.address,
                         status: a.status ? a.status.response : 'unknown'
                     })) : []
-                }));
+                    };
+                });
                 allEvents = allEvents.concat(formattedEvents);
             } catch (err) {
                 console.error(`Failed to fetch for ${room.email}:`, err.message);
@@ -131,7 +210,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // Membooking ruang
-app.post('/api/rooms/:id/book', async (req, res) => {
+app.post('/api/rooms/:id/book', bookingLimiter, async (req, res) => {
     try {
         const { subject, start, end, organizerEmail, attendees, isOnline } = req.body;
         const room = rooms.find(r => r.id === req.params.id);
@@ -151,10 +230,7 @@ app.post('/api/rooms/:id/book', async (req, res) => {
 
         let attendeeList = [
             {
-                emailAddress: {
-                    address: room.email,
-                    name: room.name
-                },
+                emailAddress: { address: room.email },
                 type: 'resource'
             }
         ];
@@ -171,14 +247,18 @@ app.post('/api/rooms/:id/book', async (req, res) => {
             });
         }
         
+        // Buat string datetime tanpa Z untuk Graph API
+        const startNoZ = start.replace('Z', '');
+        const endNoZ = end.replace('Z', '');
+
         const event = {
             subject: subject,
             start: {
-                dateTime: start,
+                dateTime: startNoZ,
                 timeZone: 'UTC' 
             },
             end: {
-                dateTime: end,
+                dateTime: endNoZ,
                 timeZone: 'UTC'
             },
             location: {
@@ -193,6 +273,7 @@ app.post('/api/rooms/:id/book', async (req, res) => {
             event.onlineMeetingProvider = 'teamsForBusiness';
         }
 
+        // POST ke kalender requester, meng-invite ruangan (room auto-accepts)
         const response = await client.api(`/users/${organizerEmail}/events`)
             .post(event);
 
@@ -296,7 +377,22 @@ app.get('/api/users/directory', async (req, res) => {
 
 app.delete('/api/events/:roomEmail/:eventId', async (req, res) => {
     try {
+        const userEmail = req.user.preferred_username;
         const client = await getGraphClient();
+
+        // Fetch event to verify ownership before deleting
+        const event = await client.api(`/users/${req.params.roomEmail}/events/${req.params.eventId}`)
+            .select('organizer,attendees,body')
+            .get();
+
+        const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
+        const inBody = event.body?.content?.toLowerCase().includes(userEmail.toLowerCase());
+        const isAttendee = event.attendees?.some(a => a.emailAddress?.address?.toLowerCase() === userEmail.toLowerCase());
+
+        if (actualOrganizer !== userEmail.toLowerCase() && !inBody && !isAttendee) {
+            return res.status(403).json({ error: 'Hanya requester yang bisa membatalkan meeting ini' });
+        }
+
         await client.api(`/users/${req.params.roomEmail}/events/${req.params.eventId}`).delete();
         res.status(200).json({ message: 'Event canceled successfully' });
     } catch (error) {
