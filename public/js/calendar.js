@@ -116,10 +116,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
             initialView: 'resourceTimelineDay',
+            customButtons: {
+                refreshBtn: {
+                    text: 'Refresh',
+                    click: function() {
+                        calendar.refetchEvents();
+                        if (typeof showToast !== 'undefined') showToast("Kalender diperbarui", "success");
+                    }
+                }
+            },
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'resourceTimelineDay,dayGridMonth'
+                right: 'refreshBtn resourceTimelineDay,dayGridMonth'
             },
             height: 'auto',
             buttonText: {
@@ -205,7 +214,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('btnCancelMeeting').addEventListener('click', () => {
             if (!currentEventContext) return;
             const event = currentEventContext;
-            const eventId = event.id;
             const roomEmail = event.extendedProps.roomEmail;
 
             closeEventModal();
@@ -215,7 +223,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            if (!confirm(`Anda yakin membatalkan meeting "${event.title}"?`)) return;
+            document.getElementById('confirmCancelText').textContent = `Anda yakin membatalkan meeting "${event.title}"?`;
+            document.getElementById('confirmCancelModal').classList.add('show');
+        });
+
+        document.getElementById('btnConfirmYes').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            const eventId = event.id;
+            const roomEmail = event.extendedProps.roomEmail;
+            
+            document.getElementById('confirmCancelModal').classList.remove('show');
 
             authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
                 method: 'DELETE'
@@ -229,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return res.text().then(text => { throw new Error(text) });
                 }
                 showToast("Meeting berhasil dibatalkan!", "success");
-                calendar.refetchEvents();
+                setTimeout(() => { window.location.reload(); }, 1500);
             })
             .catch(err => {
                 console.error(err);

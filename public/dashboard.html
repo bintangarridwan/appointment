@@ -59,7 +59,18 @@
     </div>
 </div>
 
-
+<!-- Confirm Cancel Modal -->
+<div id="confirmCancelModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 400px; text-align: center;">
+        <div class="modal-body" style="padding: 24px;">
+            <p id="confirmCancelText" style="margin-bottom: 20px; color: #1e293b; font-size: 16px;"></p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="btnConfirmYes" class="btn-primary" style="background: #ef4444; border-color: #ef4444; width: 100px;">OK</button>
+                <button id="btnConfirmNo" class="btn-primary" style="background: #64748b; border-color: #64748b; width: 100px;" onclick="document.getElementById('confirmCancelModal').classList.remove('show')">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Address Book Modal -->
 <div id="addressBookModal" class="modal-overlay">

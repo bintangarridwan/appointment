@@ -21,28 +21,37 @@ Aplikasi backend untuk pemesanan ruangan menggunakan Node.js, Express, dan Micro
 
 ```text
 .
+├── config/              # Konfigurasi MSAL & Rate Limiter
+├── controllers/         # Logika endpoint API (Room, User)
+├── middlewares/         # Middleware Express (Auth JWT)
 ├── public/              # File statis frontend (HTML, CSS, JS)
+├── routes/              # Definisi rute Express
+├── services/            # Layanan Graph API & Room Data
 ├── tests/               # File pengujian
-├── .env                 # Variabel environment (rahasia, tidak di-commit)
+├── .env                 # Variabel environment (rahasia)
 ├── package.json         # Konfigurasi dependensi project
 ├── rooms.json           # Data konfigurasi daftar ruangan
-├── server.js            # Main logic aplikasi (Express, route, Graph API)
-└── vercel.json          # Konfigurasi deployment untuk Vercel
+├── server.js            # Entry point aplikasi
+└── vercel.json          # Konfigurasi deployment Vercel
 ```
 
 ### Kategori File
-- **File Core (Inti Aplikasi):** `server.js` (logic backend utama, rute API, dan autentikasi Azure AD).
+- **File Core (Inti Aplikasi):** 
+  - `server.js` (Entry point).
+  - `controllers/` (Logika bisnis).
+  - `services/` (Koneksi eksternal/Microsoft Graph).
+  - `routes/` (Routing API).
 - **File Konfigurasi (Boleh Diubah):** 
   - `rooms.json` (menambah/menghapus daftar ruangan untuk di-booking).
+  - `config/` (Konfigurasi MSAL dan Limiter).
   - `.env` (mengatur environment variables dan credential).
   - `public/*` (mengubah dan mendesain UI/UX frontend).
 - **File Flow (Alur Sistem):**
   1. User interaksi di frontend (`public/*`).
-  2. Frontend memanggil rute `/api/*` di `server.js`.
-  3. `server.js` memvalidasi request dan rate limit.
-  4. `server.js` mengambil credential ruangan (`rooms.json` + `.env`).
-  5. `server.js` berkomunikasi dengan Microsoft Graph API (booking, baca jadwal).
-  6. Response dikembalikan ke frontend.
+  2. Frontend memanggil rute di `routes/index.js`.
+  3. Request divalidasi oleh `middlewares/` lalu diteruskan ke `controllers/`.
+  4. Controller memanggil fungsi dari `services/` untuk integrasi (contoh: Microsoft Graph API).
+  5. Response dikembalikan ke frontend.
 
 ## Cara Install
 
