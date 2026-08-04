@@ -69,7 +69,7 @@ exports.getDirectory = async (req, res) => {
         const client = await getGraphClient();
         const response = await client.api('/users')
             .select('displayName,mail,jobTitle,department')
-            .top(100)
+            .top(999)
             .get();
         
         const users = response.value

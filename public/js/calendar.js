@@ -1,9 +1,10 @@
 let calendar;
+let monthCalendar;
 let currentEventContext = null;
 const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899'];
 
 function closeEventModal() {
-    document.getElementById('eventModal').classList.remove('show');
+    document.getElementById('eventModal').classList.remove('modal-open');
 }
 
 function updateRoomStatusLogs(events, resources) {
@@ -97,12 +98,23 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         document.getElementById('stat-rooms').innerText = rooms.length;
 
-        const select = document.getElementById('room-select');
+        const hiddenInput = document.getElementById('room-select');
+        const menu = document.getElementById('room-select-menu');
+        const btn = document.getElementById('room-select-btn');
+        
         const resources = rooms.map((room, index) => {
-            const opt = document.createElement('option');
-            opt.value = room.id;
-            opt.innerText = room.name;
-            select.appendChild(opt);
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.innerText = room.name;
+            a.onclick = (e) => {
+                e.preventDefault();
+                hiddenInput.value = room.id;
+                btn.innerHTML = `${room.name} <i data-lucide="chevron-down" class="w-4 h-4"></i>`;
+                if (window.lucide) lucide.createIcons();
+                document.activeElement.blur();
+            };
+            li.appendChild(a);
+            menu.appendChild(li);
 
             return {
                 id: room.id,
@@ -128,13 +140,13 @@ document.addEventListener('DOMContentLoaded', async function() {
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'refreshBtn resourceTimelineDay,dayGridMonth'
+                right: 'refreshBtn'
             },
             height: 'auto',
+            stickyHeaderDates: false,
             buttonText: {
                 today: 'Today',
-                resourceTimelineDay: 'Timeline',
-                dayGridMonth: 'Month'
+                resourceTimelineDay: 'Timeline'
             },
             slotMinTime: '07:00:00',
             slotMaxTime: '20:00:00',
@@ -150,13 +162,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                         updateRoomStatusLogs(data, resources);
                         const todayStr = new Date().toDateString();
                         
-                        // Deduplicate same meetings across different rooms for the current view
-                        const uniqueEvents = new Set();
+                        let todayCount = 0;
                         data.forEach(e => {
-                            uniqueEvents.add(e.title + '|' + e.start + '|' + e.end);
+                            if (new Date(e.start).toDateString() === todayStr) {
+                                todayCount++;
+                            }
                         });
                         
-                        document.getElementById('today-meetings-count').innerText = uniqueEvents.size;
+                        document.getElementById('today-meetings-count').innerText = todayCount;
                     })
                     .catch(err => failureCallback(err));
             },
@@ -205,12 +218,40 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
                 document.getElementById('modalAttendees').innerHTML = attendeesHtml;
                 
-                document.getElementById('eventModal').classList.add('show');
+                document.getElementById('eventModal').classList.add('modal-open');
             },
             nowIndicator: true,
         });
         calendar.render();
         
+        const monthCalendarEl = document.getElementById('month-calendar');
+        if (monthCalendarEl) {
+            monthCalendar = new FullCalendar.Calendar(monthCalendarEl, {
+                schedulerLicenseKey: 'CC-Attribution-NonCommercial-NoDerivatives',
+                initialView: 'dayGridMonth',
+                height: 'auto',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: ''
+                },
+                stickyHeaderDates: false,
+                dateClick: function(info) {
+                    calendar.gotoDate(info.dateStr);
+                    
+                    // Remove highlight from all cells
+                    document.querySelectorAll('#month-calendar .fc-daygrid-day').forEach(el => {
+                        el.style.backgroundColor = '';
+                    });
+                    // Add highlight to clicked cell
+                    info.dayEl.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                    
+                    monthCalendar.gotoDate(info.dateStr);
+                }
+            });
+            monthCalendar.render();
+        }
+
         document.getElementById('btnCancelMeeting').addEventListener('click', () => {
             if (!currentEventContext) return;
             const event = currentEventContext;
@@ -224,16 +265,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             document.getElementById('confirmCancelText').textContent = `Anda yakin membatalkan meeting "${event.title}"?`;
-            document.getElementById('confirmCancelModal').classList.add('show');
+            document.getElementById('confirmCancelModal').classList.add('modal-open');
         });
 
         document.getElementById('btnConfirmYes').addEventListener('click', () => {
             if (!currentEventContext) return;
             const event = currentEventContext;
-            const eventId = event.id;
+            const eventId = event.extendedProps.seriesMasterId || event.id;
             const roomEmail = event.extendedProps.roomEmail;
             
-            document.getElementById('confirmCancelModal').classList.remove('show');
+            document.getElementById('confirmCancelModal').classList.remove('modal-open');
 
             authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
                 method: 'DELETE'

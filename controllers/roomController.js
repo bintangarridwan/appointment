@@ -12,32 +12,6 @@ exports.getConfig = (req, res) => {
     });
 };
 
-exports.getRoomEvents = async (req, res) => {
-    try {
-        const room = rooms.find(r => r.id === req.params.id);
-        if (!room) return res.status(404).send('Room not found');
-
-        const client = await getGraphClient();
-        
-        const now = new Date();
-        const endOfWeek = new Date();
-        endOfWeek.setDate(now.getDate() + 7);
-
-        const response = await client.api(`/users/${room.email}/calendarView`)
-            .query({
-                startDateTime: now.toISOString(),
-                endDateTime: endOfWeek.toISOString()
-            })
-            .select('subject,start,end,organizer')
-            .orderby('start/dateTime')
-            .get();
-
-        res.json(response.value);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
-    }
-};
 
 exports.getAllEvents = async (req, res) => {
     try {
@@ -54,7 +28,7 @@ exports.getAllEvents = async (req, res) => {
                         startDateTime: start,
                         endDateTime: end
                     })
-                    .select('subject,start,end,organizer,attendees')
+                    .select('subject,start,end,organizer,attendees,type,seriesMasterId')
                     .get();
 
                 const formattedEvents = response.value.map(e => {
@@ -82,7 +56,9 @@ exports.getAllEvents = async (req, res) => {
                         attendeesList: e.attendees ? e.attendees.filter(a => a.type !== 'resource').map(a => ({
                             name: a.emailAddress.name || a.emailAddress.address,
                             status: a.status ? a.status.response : 'unknown'
-                        })) : []
+                        })) : [],
+                        type: e.type,
+                        seriesMasterId: e.seriesMasterId || null
                     };
                 });
                 allEvents = allEvents.concat(formattedEvents);
@@ -98,21 +74,102 @@ exports.getAllEvents = async (req, res) => {
     }
 };
 
+function generateInstances(startIso, endIso, recurrence) {
+    const instances = [];
+    const s = new Date(startIso);
+    const e = new Date(endIso);
+    const duration = e.getTime() - s.getTime();
+    
+    if (!recurrence) {
+        instances.push({ start: s, end: e });
+        return instances;
+    }
+    
+    const pattern = recurrence.pattern;
+    const range = recurrence.range;
+    const endDate = new Date(range.endDate + 'T23:59:59Z'); 
+    let current = new Date(s.getTime());
+    
+    if (pattern.type === 'daily') {
+        const interval = pattern.interval || 1;
+        while (current <= endDate) {
+            instances.push({ start: new Date(current), end: new Date(current.getTime() + duration) });
+            current.setUTCDate(current.getUTCDate() + interval);
+        }
+    } else if (pattern.type === 'weekly') {
+        const interval = pattern.interval || 1;
+        const dayMap = { 'sunday':0, 'monday':1, 'tuesday':2, 'wednesday':3, 'thursday':4, 'friday':5, 'saturday':6 };
+        const allowedDays = pattern.daysOfWeek.map(d => dayMap[d.toLowerCase()]);
+        let weekStart = new Date(current);
+        weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+        while (weekStart <= endDate) {
+            for (let i = 0; i < 7; i++) {
+                let day = new Date(weekStart);
+                day.setUTCDate(day.getUTCDate() + i);
+                if (day >= s && day <= endDate && allowedDays.includes(day.getUTCDay())) {
+                    let instStart = new Date(day);
+                    instStart.setUTCHours(s.getUTCHours(), s.getUTCMinutes(), s.getUTCSeconds());
+                    instances.push({ start: instStart, end: new Date(instStart.getTime() + duration) });
+                }
+            }
+            weekStart.setUTCDate(weekStart.getUTCDate() + (7 * interval));
+        }
+    } else if (pattern.type === 'absoluteMonthly') {
+        const interval = pattern.interval || 1;
+        const targetDay = pattern.dayOfMonth || 1;
+        current.setUTCDate(1);
+        while (current <= endDate) {
+            let instStart = new Date(current);
+            instStart.setUTCDate(targetDay);
+            if (instStart.getUTCDate() === targetDay && instStart >= s && instStart <= endDate) {
+                instStart.setUTCHours(s.getUTCHours(), s.getUTCMinutes(), s.getUTCSeconds());
+                instances.push({ start: instStart, end: new Date(instStart.getTime() + duration) });
+            }
+            current.setUTCMonth(current.getUTCMonth() + interval);
+        }
+    }
+    return instances;
+}
+
 exports.bookRoom = async (req, res) => {
     try {
-        const { subject, start, end, organizerEmail, attendees, isOnline } = req.body;
+        const { subject, start, end, organizerEmail, attendees, isOnline, recurrence } = req.body;
         const room = rooms.find(r => r.id === req.params.id);
         if (!room) return res.status(404).send('Room not found');
 
         const client = await getGraphClient();
         
+        let checkStart = start;
+        let checkEnd = end;
+        if (recurrence) {
+            checkEnd = new Date(recurrence.range.endDate + "T23:59:59Z").toISOString();
+        }
+
         const overlapRes = await client.api(`/users/${room.email}/calendarView`)
-            .query({ startDateTime: start, endDateTime: end })
-            .select('subject,organizer')
+            .query({ startDateTime: checkStart, endDateTime: checkEnd })
+            .select('subject,start,end')
+            .top(999)
             .get();
 
-        if (overlapRes && overlapRes.value && overlapRes.value.length > 0) {
-            return res.status(400).json({ error: `${room.name} telah digunakan. Silahkan gunakan ruangan lain yang tersedia` });
+        const existingEvents = overlapRes.value || [];
+        const instances = generateInstances(start, end, recurrence);
+        const conflicts = [];
+        
+        for (let inst of instances) {
+            for (let ev of existingEvents) {
+                const evStart = new Date(ev.start.dateTime + 'Z');
+                const evEnd = new Date(ev.end.dateTime + 'Z');
+                if (inst.start < evEnd && inst.end > evStart) {
+                    conflicts.push({ date: inst.start, subject: ev.subject });
+                    break;
+                }
+            }
+        }
+
+        if (conflicts.length > 0) {
+            const conflictDates = conflicts.slice(0, 3).map(c => c.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })).join(', ');
+            const more = conflicts.length > 3 ? ` dan ${conflicts.length - 3} hari lainnya` : '';
+            return res.status(400).json({ error: `Pemesanan dibatalkan: ${room.name} sudah terpakai pada ${conflictDates}${more}. Silakan ubah jadwal Anda.` });
         }
 
         let attendeeList = [
@@ -147,6 +204,10 @@ exports.bookRoom = async (req, res) => {
         if (isOnline) {
             event.isOnlineMeeting = true;
             event.onlineMeetingProvider = 'teamsForBusiness';
+        }
+        
+        if (recurrence) {
+            event.recurrence = recurrence;
         }
 
         const response = await client.api(`/users/${organizerEmail}/events`).post(event);

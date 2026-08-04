@@ -236,7 +236,8 @@
         /* FullCalendar Light Theme Overrides */
         .fc { --fc-border-color: rgba(0,0,0,0.1); --fc-page-bg-color: transparent; --fc-neutral-bg-color: rgba(0,0,0,0.02); }
         .fc-theme-standard th { background: rgba(0,0,0,0.03) !important; padding: 12px 0; color: var(--text-muted); font-weight: 500; }
-        .fc .fc-toolbar-title { font-weight: 700; font-size: 22px; color: var(--text-main); }
+        .fc .fc-toolbar-title { font-weight: 700; font-size: 22px; color: var(--text-main); display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+        .fc .fc-toolbar-title::before { content: 'Kalendar Meeting'; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
         
         .fc .fc-button-primary {
             background: rgba(0,0,0,0.05);
@@ -267,6 +268,17 @@
         .fc-daygrid-day-number { color: var(--text-main); text-decoration: none; padding: 4px 8px; }
         .fc-col-header-cell-cushion { color: var(--text-main); text-decoration: none; padding: 8px; }
         .fc-license-message { display: none !important; }
+        
+        /* Mini Month Calendar Styling */
+        #month-calendar .fc-toolbar-title { font-size: 14px; font-weight: 600; display: inline-block; }
+        #month-calendar .fc-toolbar-title::before { content: none; }
+        #month-calendar .fc-button { padding: 2px 8px; font-size: 11px; height: auto; }
+        #month-calendar .fc-daygrid-day-frame { min-height: 20px !important; }
+        #month-calendar th { padding: 2px 0 !important; font-size: 11px; }
+        #month-calendar .fc-daygrid-day { cursor: pointer; transition: background 0.2s; }
+        #month-calendar .fc-daygrid-day:hover { background-color: rgba(0,0,0,0.05); }
+        #month-calendar .fc-daygrid-day-number { font-size: 11px; padding: 1px 4px; }
+        #month-calendar .fc-toolbar { margin-bottom: 4px !important; }
         
         /* Autocomplete */
         .autocomplete-items {
@@ -314,35 +326,7 @@
         .chip-toggle::after { content: ' (Off)'; font-size: 11px; opacity: 0.7; }
         .chip-toggle.active::after { content: ' (On)'; font-size: 11px; opacity: 1; color: var(--text-main); }
 
-        /* Toast Notification (Center Card) */
-        #toast-container {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-            pointer-events: none;
-        }
-        .toast {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(0,0,0,0.1);
-            border-top: 5px solid var(--primary);
-            padding: 32px 40px;
-            border-radius: 16px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.2);
-            color: var(--text-main);
-            display: flex; flex-direction: column; align-items: center; gap: 16px;
-            font-size: 18px; font-weight: 500; text-align: center;
-            opacity: 0; transform: scale(0.9) translateY(20px);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: auto;
-            max-width: 450px; width: 90%;
-        }
-        .toast.show { opacity: 1; transform: scale(1) translateY(0); }
-        .toast.error { border-top-color: #ef4444; }
-        .toast i { width: 48px; height: 48px; }
-        .toast.error i { color: #ef4444; }
-        .toast.success i { color: var(--primary); }
+
 
         /* Topbar User */
         .user-profile { display: flex; align-items: center; gap: 12px; }

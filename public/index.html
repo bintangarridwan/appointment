@@ -9,6 +9,9 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@1.27.0"></script>
     <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+    <!-- Tailwind CSS & DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
     <style>
         body {
@@ -30,12 +33,13 @@
             max-width: 400px;
             width: 100%;
         }
-        .welcome-card i.lucide-layers {
-            width: 64px;
-            height: 64px;
-            color: #6366f1; /* Fallback */
-            color: var(--primary, #6366f1);
-            margin-bottom: 16px;
+        .welcome-card img.logo {
+            width: 120px;
+            height: auto;
+            max-height: 120px;
+            object-fit: contain;
+            margin: 0 auto 16px auto;
+            display: block;
         }
         .welcome-card h1 {
             margin: 0 0 10px;
@@ -60,9 +64,9 @@
 <body>
 
     <div class="welcome-card">
-        <i data-lucide="layers"></i>
+        <img src="logo.jpg" alt="RoomSync Logo" class="logo mask mask-hexagon bg-white">
         <h1>Welcome to RoomSync</h1>
-        <p>Sign in with your Microsoft 365 account to book and manage meeting rooms.</p>
+        <p>Sign in with your Microsoft 365 account<br>to book meeting rooms.</p>
         
         <button class="btn-primary" id="login-btn" onclick="signIn()">
             <i data-lucide="log-in"></i> Sign In with Microsoft 365

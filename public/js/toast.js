@@ -1,16 +1,32 @@
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', requireAction = false) {
     const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
+    if (!container) return;
+    
+    const alertDiv = document.createElement('div');
+    const daisyType = type === 'error' ? 'alert-error' : `alert-${type}`;
+    
+    alertDiv.className = `alert ${daisyType} shadow-xl font-medium flex flex-wrap items-center justify-between gap-4 mb-2 max-w-md w-auto`;
+    if (type === 'error') {
+        alertDiv.classList.add('text-error-content');
+    } else {
+        alertDiv.classList.add('text-white');
+    }
+    
     const icon = type === 'success' ? 'check-circle' : 'alert-circle';
-    toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${message}</span>`;
-    container.appendChild(toast);
-    lucide.createIcons({ root: toast });
+    let innerContent = `<div class="flex items-start gap-2 flex-1"><i data-lucide="${icon}" class="w-5 h-5 shrink-0 mt-0.5"></i> <span class="whitespace-normal break-words text-left flex-1">${message}</span></div>`;
     
-    setTimeout(() => toast.classList.add('show'), 10);
+    if (requireAction) {
+        innerContent += `<button class="btn btn-info btn-sm text-white" onclick="this.closest('.alert').remove()">Ok</button>`;
+    }
     
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    alertDiv.innerHTML = innerContent;
+    
+    container.appendChild(alertDiv);
+    if (window.lucide) { lucide.createIcons({ root: alertDiv }); }
+    
+    if (!requireAction) {
+        setTimeout(() => {
+            if (alertDiv.parentNode) alertDiv.remove();
+        }, 4500);
+    }
 }

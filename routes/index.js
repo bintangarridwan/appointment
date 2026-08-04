@@ -11,7 +11,7 @@ router.use(publicGetMiddleware);
 
 router.get('/rooms', roomController.getRooms);
 router.get('/config', roomController.getConfig);
-router.get('/rooms/:id/events', roomController.getRoomEvents);
+
 router.get('/events', roomController.getAllEvents);
 router.post('/rooms/:id/book', bookingLimiter, roomController.bookRoom);
 router.delete('/events/:roomEmail/:eventId', roomController.deleteEvent);

@@ -1,78 +1,126 @@
 # Room Booking API
 
-Aplikasi backend untuk pemesanan ruangan menggunakan Node.js, Express, dan Microsoft Graph API (Azure AD).
+Aplikasi backend & frontend untuk pemesanan ruangan (room booking) terintegrasi dengan **Microsoft Graph API (Azure AD)**.
 
 ## Teknologi & Bahasa
+
 - **Bahasa:** JavaScript (Node.js)
-- **Framework:** Express.js (`^5.2.1`)
-- **Autentikasi & API:** 
-  - `@azure/msal-node` (`^5.4.0`)
-  - `@microsoft/microsoft-graph-client` (`^3.0.7`)
-  - `jsonwebtoken` (`^9.0.3`)
-  - `jwks-rsa` (`^4.1.0`)
-- **Keamanan & Utilitas:** 
-  - `cors` (`^2.8.6`)
-  - `express-rate-limit` (`^8.6.1`)
-  - `dotenv` (`^17.4.2`)
-  - `isomorphic-fetch` (`^3.0.0`)
-  - `tr46` (`^6.0.0`)
+- **Framework & Server:** Express.js (`^5.2.1`)
+- **Autentikasi & API Integrasi:**
+  - `@azure/msal-node` (`^5.4.0`) - Autentikasi MSAL (Microsoft Authentication Library)
+  - `@microsoft/microsoft-graph-client` (`^3.0.7`) - Client SDK Microsoft Graph API
+  - `jsonwebtoken` (`^9.0.3`) & `jwks-rsa` (`^4.1.0`) - Verifikasi JWT Token
+- **Keamanan & Limiting:**
+  - `cors` (`^2.8.6`) - Cross-Origin Resource Sharing
+  - `express-rate-limit` (`^8.6.1`) - Pembatasan request rate limit
+- **Utilitas & Dev:**
+  - `dotenv` (`^17.4.2`) - Pengelolaan environment variable
+  - `isomorphic-fetch` (`^3.0.0`) & `tr46` (`^6.0.0`)
+  - `daisyui` (`^5.7.4`) - Plugin UI CSS (Dev Dependency)
+
+---
 
 ## Struktur Folder & File
 
 ```text
 .
-├── config/              # Konfigurasi MSAL & Rate Limiter
-├── controllers/         # Logika endpoint API (Room, User)
-├── middlewares/         # Middleware Express (Auth JWT)
-├── public/              # File statis frontend (HTML, CSS, JS)
-├── routes/              # Definisi rute Express
-├── services/            # Layanan Graph API & Room Data
-├── tests/               # File pengujian
-├── .env                 # Variabel environment (rahasia)
-├── package.json         # Konfigurasi dependensi project
-├── rooms.json           # Data konfigurasi daftar ruangan
-├── server.js            # Entry point aplikasi
-└── vercel.json          # Konfigurasi deployment Vercel
+├── assets/                  # Aset statis pendukung
+│   └── public/
+│       └── logo.jpg
+├── config/                  # Konfigurasi MSAL & Rate Limiter
+│   ├── limiter.js           # Konfigurasi express-rate-limit
+│   └── msal.js              # Konfigurasi MSAL Node (Azure AD Client Application)
+├── controllers/             # Logika Controller API
+│   ├── roomController.js    # Manajemen daftar ruangan, event booking, dan pembatalan
+│   └── userController.js    # Pencarian user, direktori, dan pengecekan jadwal (schedule)
+├── middlewares/             # Express Middlewares
+│   └── auth.js              # Verification middleware JWT token / public access
+├── public/                  # Static Frontend Files
+│   ├── js/                  # JavaScript frontend
+│   │   ├── addressbook.js   # Logika address book / daftar kontak
+│   │   ├── auth.js          # Handler autentikasi frontend
+│   │   ├── autocomplete.js  # Feature pencarian & autocomplete user
+│   │   ├── booking.js       # Form dan modal proses booking
+│   │   ├── calendar.js      # Visualisasi jadwal & kalender interaktif
+│   │   └── toast.js         # Notifikasi UI toast
+│   ├── dashboard.html       # Halaman dashboard utama kalender & booking
+│   ├── index.html           # Halaman landing / login
+│   ├── logo.jpg             # Logo aplikasi
+│   ├── robots.txt           # File instruksi crawler
+│   └── style.css            # Custom CSS & styling
+├── routes/                  # Express Router
+│   └── index.js             # Definisi seluruh endpoint API (/api/...)
+├── services/                # Integration Services
+│   ├── graphService.js      # Inisialisasi client Microsoft Graph API
+│   └── roomService.js       # Data loader helper untuk rooms.json
+├── tests/                   # Test suite & script pengujian
+│   ├── test-fc-fetch.js
+│   ├── test-graph-view.js
+│   ├── test-graph.js
+│   ├── test-search.js
+│   └── test-utc.js
+├── .env                     # File variabel lingkungan (Credentials/Secrets)
+├── .gitignore               # Daftar file & folder yang diabaikan oleh Git
+├── package-lock.json        # Lockfile dependensi npm
+├── package.json             # Konfigurasi project & dependensi npm
+├── rooms.json               # Konfigurasi data daftar ruangan
+├── server.js                # Entry point utama aplikasi Express
+└── vercel.json              # Konfigurasi deployment ke Vercel Serverless
 ```
 
 ### Kategori File
-- **File Core (Inti Aplikasi):** 
-  - `server.js` (Entry point).
-  - `controllers/` (Logika bisnis).
-  - `services/` (Koneksi eksternal/Microsoft Graph).
-  - `routes/` (Routing API).
-- **File Konfigurasi (Boleh Diubah):** 
-  - `rooms.json` (menambah/menghapus daftar ruangan untuk di-booking).
-  - `config/` (Konfigurasi MSAL dan Limiter).
-  - `.env` (mengatur environment variables dan credential).
-  - `public/*` (mengubah dan mendesain UI/UX frontend).
-- **File Flow (Alur Sistem):**
-  1. User interaksi di frontend (`public/*`).
-  2. Frontend memanggil rute di `routes/index.js`.
-  3. Request divalidasi oleh `middlewares/` lalu diteruskan ke `controllers/`.
-  4. Controller memanggil fungsi dari `services/` untuk integrasi (contoh: Microsoft Graph API).
-  5. Response dikembalikan ke frontend.
 
-## Cara Install
+- **Core Application (`server.js`, `routes/`, `controllers/`, `services/`):** Menyediakan REST API backend untuk pemesanan ruangan, interaksi dengan Azure AD, dan Microsoft Graph.
+- **Konfigurasi (`rooms.json`, `config/`, `.env`, `vercel.json`):**
+  - `rooms.json` mengatur daftar ruangan yang dapat dipesan (nama, email kalender room, kapasitas).
+  - `.env` menyimpan kredensial sensitif Azure AD.
+  - `vercel.json` mengatur opsi deployment serverless di Vercel.
+- **Frontend (`public/`):** Antarmuka pengguna interaktif (HTML, CSS, JS) untuk melihat jadwal kalender ruangan, mencari user, dan mengajukan pemesanan.
+
+---
+
+## Endpoint API
+
+Seluruh endpoint terdaftar di `routes/index.js` dengan prefix `/api`:
+
+| Method | Endpoint | Deskripsi | Rate Limit |
+|---|---|---|---|
+| `GET` | `/api/rooms` | Mendapatkan daftar ruangan dari `rooms.json` | API Limiter |
+| `GET` | `/api/config` | Mendapatkan konfigurasi publik aplikasi | API Limiter |
+| `GET` | `/api/events` | Mendapatkan semua event jadwal dari kalender ruangan | API Limiter |
+| `POST` | `/api/rooms/:id/book` | Membuat pemesanan/booking ruangan baru | Booking Limiter |
+| `DELETE` | `/api/events/:roomEmail/:eventId` | Menghapus / membatalkan pemesanan event | API Limiter |
+| `GET` | `/api/users/search` | Mencari user Azure AD berdasarkan query nama/email | API Limiter |
+| `POST` | `/api/users/schedule` | Mendapatkan status jadwal free/busy user | API Limiter |
+| `GET` | `/api/users/directory` | Mendapatkan daftar direktori user | API Limiter |
+
+---
+
+## Cara Install & Menjalankan
 
 1. Clone repositori ini.
 2. Buka terminal di folder project, jalankan:
    ```bash
    npm install
    ```
-3. Buat file `.env` di root folder (lihat bagian konfigurasi di bawah).
+3. Buat file `.env` di root folder (gunakan format di bawah).
 4. Jalankan server lokal:
    ```bash
    npm start
    ```
+   Aplikasi akan berjalan di `http://localhost:3000` (atau port sesuai `.env`).
 
-## Script Project (package.json)
+---
 
-Jalankan perintah berikut di terminal (melalui `npm run <script>` atau `npm <script>`):
+## Script Project (`package.json`)
+
+Jalankan perintah berikut di terminal:
 - `npm start` : Menjalankan server aplikasi (`node server.js`).
-- `npm test` : Menjalankan script pengujian (belum dikonfigurasi).
+- `npm test` : Script pengujian (dapat digunakan untuk pengujian kustom).
 
-## Konfigurasi Azure AD (.env)
+---
+
+## Konfigurasi Azure AD (`.env`)
 
 Aplikasi membutuhkan kredensial Azure AD untuk mengakses Microsoft Graph API. Buat file `.env` dengan isi:
 
@@ -81,25 +129,25 @@ TENANT_ID=your-tenant-id-here
 CLIENT_ID=your-client-id-here
 CLIENT_SECRET=your-client-secret-here
 CORS_ORIGIN=http://localhost:3000
+PORT=3000
 ```
 
-### Cara Mendapatkan Tenant ID, Client ID, dan Client Secret:
+### Langkah Registrasi Azure AD Application:
 
 1. Login ke [Azure Portal](https://portal.azure.com/).
-2. Buka layanan **Microsoft Entra ID** (sebelumnya Azure Active Directory).
+2. Buka layanan **Microsoft Entra ID** (Azure Active Directory).
 3. Klik menu **App registrations** > **New registration**.
    - Beri nama aplikasi.
    - Pilih *Accounts in this organizational directory only*.
    - Klik **Register**.
 4. Di halaman **Overview** aplikasi, salin:
-   - **Application (client) ID** -> Masukkan sebagai `CLIENT_ID`.
-   - **Directory (tenant) ID** -> Masukkan sebagai `TENANT_ID`.
+   - **Application (client) ID** -> Masukkan ke `CLIENT_ID`.
+   - **Directory (tenant) ID** -> Masukkan ke `TENANT_ID`.
 5. Buka menu **Certificates & secrets** > **Client secrets**.
    - Klik **New client secret**.
-   - Beri deskripsi dan masa berlaku, klik **Add**.
-   - Salin isi dari kolom **Value** (bukan Secret ID) -> Masukkan sebagai `CLIENT_SECRET`. *(Catatan: Value hanya muncul sekali saat dibuat)*.
+   - Beri deskripsi & masa berlaku, klik **Add**.
+   - Salin isi kolom **Value** -> Masukkan ke `CLIENT_SECRET`. *(Catatan: Value hanya muncul sekali saat dibuat)*.
 6. Buka menu **API permissions** > **Add a permission**.
    - Pilih **Microsoft Graph** > **Application permissions**.
-   - Cari dan centang `Calendars.ReadWrite` dan `User.Read.All` (atau sesuaikan dengan kebutuhan aplikasi).
-   - Klik **Add permissions**.
-   - Klik **Grant admin consent for [Nama Organisasi]** agar statusnya menjadi hijau (Granted).
+   - Tambahkan permission `Calendars.ReadWrite` dan `User.Read.All`.
+   - Klik **Grant admin consent for [Nama Organisasi]** hingga status bercentang hijau.

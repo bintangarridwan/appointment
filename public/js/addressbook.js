@@ -4,11 +4,11 @@ let addressBookPage = 1;
 const addressBookPageSize = 10;
 
 function closeAddressBook() {
-    document.getElementById('addressBookModal').classList.remove('show');
+    document.getElementById('addressBookModal').classList.remove('modal-open');
 }
 
 async function openAddressBook() {
-    document.getElementById('addressBookModal').classList.add('show');
+    document.getElementById('addressBookModal').classList.add('modal-open');
     document.getElementById('addressBookLoading').style.display = 'block';
     document.getElementById('addressBookTable').style.display = 'none';
 
@@ -19,8 +19,6 @@ async function openAddressBook() {
 
         const res = await fetch('/api/users/directory');
         let allUsers = await res.json();
-        
-        // Filter hanya email @citarasakuliner.com
         let users = allUsers.filter(u => u.email && u.email.toLowerCase().endsWith('@citarasakuliner.com'));
         
         // Default status

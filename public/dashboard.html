@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,210 +11,411 @@
     <!-- FullCalendar Premium -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@6.1.15/index.global.min.js'></script>
     <script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <!-- Tailwind CSS & DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css?v=8">
 </head>
-<body>
+<body class="bg-base-200">
 
-<div id="toast-container"></div>
+<div id="toast-container" class="toast toast-top toast-end z-[100]"></div>
 
 <!-- Global Loader Overlay -->
-<div id="global-loader" class="global-loader-overlay">
-    <div class="spinner"></div>
-    <h3 style="color: #1e293b; font-size: 18px;">Signing you out...</h3>
-    <p style="color: #64748b; font-size: 14px;">Please wait.</p>
+<div id="global-loader" class="fixed inset-0 z-50 bg-base-200/80 flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 hidden [&.modal-open]:flex [&.modal-open]:opacity-100 [&.modal-open]:pointer-events-auto">
+    <span class="loading loading-spinner loading-lg text-primary mb-4"></span>
+    <h3 class="text-lg font-bold">Signing you out...</h3>
+    <p class="text-sm opacity-70">Please wait.</p>
 </div>
 
 <!-- Event Detail Modal -->
-<div id="eventModal" class="modal-overlay">
-    <div class="modal-card">
-        <div class="modal-header">
-            <h3 class="modal-title">Meeting Details</h3>
-            <i data-lucide="x" class="modal-close" onclick="closeEventModal()"></i>
+<div id="eventModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4 flex justify-between">Meeting Details <button class="btn btn-sm btn-circle btn-ghost" onclick="closeEventModal()">✕</button></h3>
+        <div class="space-y-2 text-sm">
+            <div class="grid grid-cols-3"><strong class="col-span-1">Date</strong><span id="modalDate" class="col-span-2"></span></div>
+            <div class="grid grid-cols-3"><strong class="col-span-1">Time</strong><span id="modalTime" class="col-span-2"></span></div>
+            <div class="grid grid-cols-3"><strong class="col-span-1">Subject</strong><span id="modalSubject" class="col-span-2"></span></div>
+            <div class="grid grid-cols-3"><strong class="col-span-1">Room</strong><span id="modalRoom" class="col-span-2"></span></div>
+            <div class="grid grid-cols-3"><strong class="col-span-1">Attendees</strong><span id="modalAttendees" class="col-span-2"></span></div>
         </div>
-        <div class="modal-body">
-            <div>
-                <strong>Date</strong>
-                <span id="modalDate"></span>
-            </div>
-            <div>
-                <strong>Time</strong>
-                <span id="modalTime"></span>
-            </div>
-            <div>
-                <strong>Meeting Subject</strong>
-                <span id="modalSubject"></span>
-            </div>
-            <div>
-                <strong>Room</strong>
-                <span id="modalRoom"></span>
-            </div>
-            <div>
-                <strong>Attendees</strong>
-                <span id="modalAttendees"></span>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn-cancel-meeting" id="btnCancelMeeting">Cancel Meeting</button>
+        <div class="modal-action">
+            <button class="btn btn-error w-full" id="btnCancelMeeting">Cancel Meeting</button>
         </div>
     </div>
+    <div class="modal-backdrop" onclick="closeEventModal()"></div>
 </div>
 
 <!-- Confirm Cancel Modal -->
-<div id="confirmCancelModal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 400px; text-align: center;">
-        <div class="modal-body" style="padding: 24px;">
-            <p id="confirmCancelText" style="margin-bottom: 20px; color: #1e293b; font-size: 16px;"></p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button id="btnConfirmYes" class="btn-primary" style="background: #ef4444; border-color: #ef4444; width: 100px;">OK</button>
-                <button id="btnConfirmNo" class="btn-primary" style="background: #64748b; border-color: #64748b; width: 100px;" onclick="document.getElementById('confirmCancelModal').classList.remove('show')">Cancel</button>
-            </div>
+<div id="confirmCancelModal" class="modal">
+    <div class="modal-box text-center">
+        <p id="confirmCancelText" class="py-4"></p>
+        <div class="modal-action justify-center gap-4">
+            <button id="btnConfirmYes" class="btn btn-error w-24">OK</button>
+            <button id="btnConfirmNo" class="btn w-24" onclick="document.getElementById('confirmCancelModal').classList.remove('modal-open')">Cancel</button>
         </div>
     </div>
+    <div class="modal-backdrop" onclick="document.getElementById('confirmCancelModal').classList.remove('modal-open')"></div>
+</div>
+
+<!-- Error Modal -->
+<div id="errorModal" class="modal">
+    <div class="modal-box text-center">
+        <h3 class="font-bold text-lg text-error mb-4">Peringatan</h3>
+        <p id="errorModalText" class="py-4 font-medium"></p>
+        <div class="modal-action justify-center">
+            <button class="btn btn-info text-white w-24" onclick="document.getElementById('errorModal').classList.remove('modal-open')">Ok</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('errorModal').classList.remove('modal-open')"></div>
 </div>
 
 <!-- Address Book Modal -->
-<div id="addressBookModal" class="modal-overlay">
-    <div class="modal-card" style="max-width: 700px; width: 90%;">
-        <div class="modal-header">
-            <h3 class="modal-title">Address Book</h3>
-            <i data-lucide="x" class="modal-close" onclick="closeAddressBook()"></i>
+<div id="addressBookModal" class="modal">
+    <div class="modal-box max-w-2xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg">Address Book</h3>
+            <button class="btn btn-sm btn-circle btn-ghost" onclick="closeAddressBook()">✕</button>
         </div>
-        <div class="modal-body" style="max-height: 400px; overflow-y: auto; padding: 0; -webkit-overflow-scrolling: touch; transform: translate3d(0,0,0); will-change: transform;">
-            <div style="padding: 8px 10px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; display: flex; justify-content: flex-end;">
-                <input type="text" id="addressBookSearch" placeholder="Search name or email..." style="width: 220px; padding: 6px 10px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit;" onkeyup="filterAddressBook()">
-            </div>
-            <div id="addressBookLoading" style="padding: 20px; text-align: center;">Loading...</div>
-            <table id="addressBookTable" style="width: 100%; text-align: left; border-collapse: collapse; display: none; font-size: 13px;">
-                <thead style="background: #f8fafc; position: sticky; top: 51px;">
+        <div class="mb-4 flex justify-end">
+            <label class="input input-sm input-bordered flex items-center gap-2 w-full max-w-xs">
+                <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <g stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5" fill="none" stroke="currentColor">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </g>
+                </svg>
+                <input type="search" id="addressBookSearch" class="grow" placeholder="Search name or email..." onkeyup="filterAddressBook()" />
+            </label>
+        </div>
+        <div id="addressBookLoading" class="py-10 text-center"><span class="loading loading-spinner"></span></div>
+        <div class="overflow-x-auto max-h-96">
+            <table id="addressBookTable" class="table table-pin-rows table-sm hidden w-full">
+                <thead>
                     <tr>
-                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Name & Email</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Title / Dept</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0;">Status</th>
-                        <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">Add</th>
+                        <th>Name & Email</th>
+                        <th>Title / Dept</th>
+                        <th>Status</th>
+                        <th class="text-center">Add</th>
                     </tr>
                 </thead>
                 <tbody id="addressBookList"></tbody>
             </table>
-            <div id="addressBookPagination" style="padding: 10px; display: none; justify-content: space-between; align-items: center; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 13px;">
-                <button type="button" id="btnPrevPage" onclick="changeAddressBookPage(-1)" style="padding: 4px 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; border-radius: 4px;">Previous</button>
-                <span id="addressBookPageInfo">Page 1 / 1</span>
-                <button type="button" id="btnNextPage" onclick="changeAddressBookPage(1)" style="padding: 4px 8px; cursor: pointer; border: 1px solid #cbd5e1; background: white; border-radius: 4px;">Next</button>
-            </div>
+        </div>
+        <div id="addressBookPagination" class="hidden justify-between items-center mt-4">
+            <button type="button" id="btnPrevPage" class="btn btn-sm" onclick="changeAddressBookPage(-1)">Previous</button>
+            <span id="addressBookPageInfo" class="text-sm">Page 1 / 1</span>
+            <button type="button" id="btnNextPage" class="btn btn-sm" onclick="changeAddressBookPage(1)">Next</button>
         </div>
     </div>
+    <div class="modal-backdrop" onclick="closeAddressBook()"></div>
 </div>
 
-<div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="logo">
-            <i data-lucide="layers"></i> RoomSync
+<!-- Recurring Modal -->
+<div id="recurringModal" class="modal">
+    <div class="modal-box w-11/12 max-w-md bg-base-100 shadow-2xl overflow-visible">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg">Set Recurring</h3>
+            <button class="btn btn-sm btn-circle btn-ghost" onclick="closeRecurringModal()">✕</button>
+        </div>
+        <div class="form-control w-full">
+            <label class="label"><span class="label-text">Recurring Type</span></label>
+            <details class="dropdown w-full" id="recur-dropdown">
+                <summary class="btn btn-outline w-full justify-between" id="recur-type-btn">None <i data-lucide="chevron-down" class="w-4 h-4"></i></summary>
+                <ul class="dropdown-content menu bg-base-100 rounded-box z-[100] w-full p-2 shadow-xl border border-base-200 mt-1">
+                    <li><a onclick="setRecurType('', 'None')">None</a></li>
+                    <li><a onclick="setRecurType('daily', 'Daily')">Daily</a></li>
+                    <li><a onclick="setRecurType('weekly', 'Weekly')">Weekly</a></li>
+                    <li><a onclick="setRecurType('monthly', 'Monthly')">Monthly</a></li>
+                </ul>
+            </details>
+            <input type="hidden" id="recurType" value="">
+        </div>
+
+        <div id="dailySection" class="mt-4 p-4 bg-base-100 rounded-box border border-base-300 hidden">
+            <label class="flex items-center gap-2">
+                Every <input type="number" id="dailyDays" class="input input-bordered input-sm w-20" min="1" value="1"> days
+            </label>
+        </div>
+
+        <div id="weeklySection" class="mt-4 p-4 bg-base-100 rounded-box border border-base-300 hidden">
+            <label class="flex items-center gap-2 mb-3">
+                Recur every <input type="number" id="weeklyWeeks" class="input input-bordered input-sm w-20" min="1" value="1"> week(s)
+            </label>
+            <div class="flex gap-4 flex-wrap">
+                <label class="cursor-pointer label"><input type="checkbox" class="checkbox checkbox-sm" value="Mon"> <span class="label-text ml-2">Mon</span></label>
+                <label class="cursor-pointer label"><input type="checkbox" class="checkbox checkbox-sm" value="Tue"> <span class="label-text ml-2">Tue</span></label>
+                <label class="cursor-pointer label"><input type="checkbox" class="checkbox checkbox-sm" value="Wed"> <span class="label-text ml-2">Wed</span></label>
+                <label class="cursor-pointer label"><input type="checkbox" class="checkbox checkbox-sm" value="Thu"> <span class="label-text ml-2">Thu</span></label>
+                <label class="cursor-pointer label"><input type="checkbox" class="checkbox checkbox-sm" value="Fri"> <span class="label-text ml-2">Fri</span></label>
+            </div>
+        </div>
+
+        <div id="monthlySection" class="mt-4 p-4 bg-base-100 rounded-box border border-base-300 hidden text-sm">
+            <div class="mb-3 flex items-center gap-2">
+                Ulangi setiap 
+                <input type="number" id="monthlyMonths" class="input input-bordered input-sm w-16 text-center" min="1" value="1" onchange="updateMonthlyPreview()"> 
+                bulan:
+            </div>
+            
+            <div class="flex flex-col gap-3">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="monthlyMode" value="absolute" class="radio radio-sm radio-primary" checked onchange="updateMonthlyPreview()">
+                    <span>Pada tanggal</span>
+                    <input type="number" id="monthlyDay" class="input input-bordered input-sm w-16 text-center" min="1" max="31" value="15" onchange="updateMonthlyPreview()">
+                </label>
+                
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="monthlyMode" value="relative" class="radio radio-sm radio-primary" onchange="updateMonthlyPreview()">
+                    <span>Pada</span>
+                    <select id="monthlyDayOfWeek" class="select select-bordered select-sm w-28" onchange="updateMonthlyPreview()">
+                        <option value="Monday">Senin</option>
+                        <option value="Tuesday">Selasa</option>
+                        <option value="Wednesday">Rabu</option>
+                        <option value="Thursday">Kamis</option>
+                        <option value="Friday" selected>Jumat</option>
+                        <option value="Saturday">Sabtu</option>
+                        <option value="Sunday">Minggu</option>
+                    </select>
+                    <span>minggu</span>
+                    <select id="monthlyIndex" class="select select-bordered select-sm w-24" onchange="updateMonthlyPreview()">
+                        <option value="first">ke-1</option>
+                        <option value="second" selected>ke-2</option>
+                        <option value="third">ke-3</option>
+                        <option value="fourth">ke-4</option>
+                        <option value="last">terakhir</option>
+                    </select>
+                </label>
+            </div>
+            
+            <div class="mt-4 text-xs text-base-content/70 italic" id="monthlyPreview">
+                Jadwal aktif setiap 1 bulan pada tanggal 15.
+            </div>
+        </div>
+
+        <div id="recurRangeSection" class="mt-4 p-4 bg-base-100 rounded-box border border-base-300 hidden">
+            <label class="flex items-center gap-4 text-sm font-medium">
+                End Date: 
+                <input type="date" id="recurEndDate" class="input input-bordered input-sm flex-1">
+            </label>
         </div>
         
-        <div id="auth-section" class="booking-card" style="margin-bottom: 4px; display: flex; flex-direction: column; gap: 8px; padding: 12px;">
-            <div id="auth-user-info" style="font-size:14px; font-weight: 500; text-align: center; word-break: break-word;">Loading...</div>
-            <button class="btn-primary" id="logout-btn" onclick="signOut()" style="background:#ef4444; border-color:#ef4444;">
-                <i data-lucide="log-out"></i> Sign Out
+        <div class="modal-action">
+            <button class="btn" onclick="closeRecurringModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveRecurringModal()">Save</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="closeRecurringModal()"></div>
+</div>
+
+<div class="flex h-screen flex-col lg:flex-row overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-full lg:w-80 bg-base-100 shadow-xl overflow-y-auto p-2 flex flex-col gap-2 z-10 text-sm">
+        <div class="flex items-center gap-2 font-bold text-lg text-primary p-2">
+            <i data-lucide="layers" class="w-5 h-5"></i> RoomSync
+        </div>
+        
+        <!-- Month Calendar Widget -->
+        <div class="card bg-base-100 shadow-sm border border-base-200 p-2 shrink-0 w-full mt-2">
+            <div id="month-calendar" class="w-full"></div>
+        </div>
+        
+        <div class="card bg-base-100 shadow-sm border border-base-200 p-3">
+            <h3 class="font-bold flex items-center gap-2 mb-2 text-sm"><i data-lucide="calendar-plus" class="w-4 h-4"></i> New Booking</h3>
+            
+            <div class="form-control w-full mb-1">
+                <label class="label p-1"><span class="label-text text-xs font-medium">Select Room</span></label>
+                <div class="dropdown w-full">
+                  <div tabindex="0" role="button" class="btn btn-sm btn-outline w-full justify-between" id="room-select-btn">Pilih Ruangan Meeting <i data-lucide="chevron-down" class="w-4 h-4"></i></div>
+                  <ul tabindex="-1" id="room-select-menu" class="dropdown-content menu bg-base-100 rounded-box z-[100] w-full p-2 shadow-xl border border-base-200 mt-1 max-h-48 overflow-y-auto flex-nowrap">
+                  </ul>
+                </div>
+                <input type="hidden" id="room-select" value="">
+            </div>
+            
+            <div class="form-control w-full mb-1 relative">
+                <label class="label p-1"><span class="label-text text-xs font-medium">Requester</span></label>
+                <input type="email" id="organizer" class="input input-bordered input-sm w-full" placeholder="name@domain.com" autocomplete="off" disabled>
+                <div id="autocomplete-list" class="absolute top-14 left-0 right-0 z-50 bg-base-100 shadow-lg rounded-box max-h-40 overflow-y-auto hidden"></div>
+            </div>
+            
+            <div class="form-control w-full mb-1">
+                <label class="label p-1"><span class="label-text text-xs font-medium">Meeting Subject</span></label>
+                <input type="text" id="subject" class="input input-bordered input-sm w-full" placeholder="Weekly Sync">
+            </div>
+            
+            <div class="form-control w-full mb-1 relative">
+                <label class="label p-1 flex justify-between">
+                    <span class="label-text text-xs font-medium">Invite Attendees</span>
+                    <button type="button" class="btn btn-xs btn-ghost p-0 h-auto min-h-0" onclick="openAddressBook()">
+                        <i data-lucide="users" class="w-3 h-3"></i> Address Book
+                    </button>
+                </label>
+                <input type="text" id="attendees" class="input input-bordered input-sm w-full" placeholder="email@domain.com" autocomplete="off">
+                <div id="attendees-autocomplete-list" class="absolute top-14 left-0 right-0 z-50 bg-base-100 shadow-lg rounded-box max-h-40 overflow-y-auto hidden"></div>
+            </div>
+            
+            <div class="form-control w-full mb-1">
+                <label class="label p-1"><span class="label-text text-xs font-medium">Date</span></label>
+                <input type="date" id="date" class="input input-bordered input-sm w-full">
+            </div>
+            
+            <div class="flex gap-2 mb-2">
+                <div class="form-control w-full">
+                    <label class="label p-1"><span class="label-text text-xs font-medium">Start</span></label>
+                    <input type="time" id="start" class="input input-bordered input-sm w-full">
+                </div>
+                <div class="form-control w-full">
+                    <label class="label p-1"><span class="label-text text-xs font-medium">End</span></label>
+                    <input type="time" id="end" class="input input-bordered input-sm w-full">
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-1 mb-3">
+                <button id="teams-toggle" class="btn btn-sm btn-outline justify-start" onclick="toggleTeams(this)">
+                    <i data-lucide="video" class="w-4 h-4 mr-2"></i> <span id="teams-text">Teams Meeting</span>
+                </button>
+                <button id="recurring-btn" class="btn btn-sm btn-outline justify-start" onclick="openRecurringModal()">
+                    <i data-lucide="repeat" class="w-4 h-4 mr-2"></i> Set Recurring
+                </button>
+            </div>
+            
+            <button class="btn btn-primary text-white" id="book-btn" onclick="bookRoom()">
+                <i data-lucide="check-circle" class="w-4 h-4"></i> Book Now
             </button>
         </div>
         
-        <div class="booking-card">
-            <h3><i data-lucide="calendar-plus"></i> New Booking</h3>
-            <div class="form-group">
-                <label>Select Room</label>
-                <select id="room-select"></select>
-            </div>
-            <div class="form-group" style="position: relative;">
-                <label>Requester</label>
-                <input type="email" id="organizer" placeholder="name@citarasakuliner.com" autocomplete="off" disabled>
-                <div id="autocomplete-list" class="autocomplete-items"></div>
-            </div>
-            <div class="form-group">
-                <label>Meeting Subject</label>
-                <input type="text" id="subject" placeholder="Weekly Sync">
-            </div>
-            <div class="form-group" style="position: relative;">
-                <label style="display: flex; justify-content: space-between; align-items: center;">
-                    Invite Attendees
-                    <button type="button" onclick="openAddressBook()" style="background: #e2e8f0; border: none; padding: 2px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; color: #475569; display: flex; align-items: center; gap: 4px;"><i data-lucide="users" style="width: 12px; height: 12px;"></i> Address Book</button>
-                </label>
-                <input type="text" id="attendees" placeholder="email@citarasakuliner.com" autocomplete="off">
-                <div id="attendees-autocomplete-list" class="autocomplete-items"></div>
-            </div>
-            <div class="form-group">
-                <label>Date</label>
-                <input type="date" id="date">
-            </div>
-            <div style="display: flex; gap: 12px;">
-                <div class="form-group" style="flex: 1;">
-                    <label>Start Time</label>
-                    <input type="time" id="start">
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label>End Time</label>
-                    <input type="time" id="end">
-                </div>
-            </div>
-            <div class="form-group" style="margin-top: 4px; margin-bottom: 8px;">
-                <div id="teams-toggle" class="chip-toggle" title="Teams Meeting is Off" onclick="this.classList.toggle('active'); this.title = this.classList.contains('active') ? 'Teams Meeting is On' : 'Teams Meeting is Off';">
-                    <i data-lucide="video" style="width: 16px; height: 16px;"></i> Teams Meeting
-                </div>
-            </div>
-            <button class="btn-primary" id="book-btn" onclick="bookRoom()">
-                <i data-lucide="check-circle"></i> Book Now
+        <div id="auth-section" class="card bg-base-200 p-3 mt-auto">
+            <div id="auth-user-info" class="text-xs font-medium text-center break-words mb-2">Loading...</div>
+            <button class="btn btn-error text-white" id="logout-btn" onclick="signOut()">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
             </button>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <div class="main-wrapper">
+    <main class="flex-1 overflow-y-auto p-4 lg:p-8 flex flex-col gap-6" id="main-content">
+        <!-- Stats -->
+        <div class="stats-row w-full mb-2 shrink-0">
+            <div class="stat-card">
+                <div class="stat-icon text-primary"><i data-lucide="door-open" class="w-6 h-6"></i></div>
+                <div class="stat-info">
+                    <h4>Total Rooms</h4>
+                    <p class="text-primary" id="stat-rooms">0</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon text-success"><i data-lucide="check-circle" class="w-6 h-6"></i></div>
+                <div class="stat-info">
+                    <h4>Status rooms</h4>
+                    <p class="text-success">Active</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon text-info"><i data-lucide="calendar" class="w-6 h-6"></i></div>
+                <div class="stat-info">
+                    <h4>Total meeting today</h4>
+                    <p class="text-info" id="today-meetings-count">0</p>
+                </div>
+            </div>
+        </div>
+        
 
-        <main class="content">
-            <!-- Stats -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i data-lucide="door-open"></i></div>
-                    <div class="stat-info">
-                        <h4>Total Rooms</h4>
-                        <p id="stat-rooms">0</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i data-lucide="calendar-check"></i></div>
-                    <div class="stat-info">
-                        <h4>Status</h4>
-                        <p>Active</p>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i data-lucide="users"></i></div>
-                    <div class="stat-info">
-                        <h4>Meetings in View</h4>
-                        <p id="today-meetings-count">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Calendar -->
-            <div class="calendar-wrapper">
-                <div id="calendar"></div>
-            </div>
-            
-            <!-- Active Logs -->
-            <div class="active-logs-wrapper" id="active-logs-wrapper" style="display: none;">
-                <h4><i data-lucide="activity"></i> Current Room Status</h4>
-                <div id="active-logs" class="logs-grid"></div>
-            </div>
-        </main>
-    </div>
+        <!-- Calendar -->
+        <div class="card bg-base-100 shadow-xl p-4 flex-1">
+            <div id="calendar" class="w-full"></div>
+        </div>
+        
+        <!-- Active Logs -->
+        <div class="card bg-base-100 shadow-xl p-4 hidden shrink-0" id="active-logs-wrapper">
+            <h4 class="font-bold flex items-center gap-2 mb-4"><i data-lucide="activity"></i> Current Room Status</h4>
+            <div id="active-logs" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        </div>
+    </main>
 </div>
 
 <script>lucide.createIcons();</script>
-<script src="/js/toast.js"></script>
-<script src="/js/auth.js"></script>
-<script src="/js/booking.js"></script>
-<script src="/js/autocomplete.js"></script>
-<script src="/js/addressbook.js"></script>
-<script src="/js/calendar.js"></script>
+<script src="/js/toast.js?v=9"></script>
+<script src="/js/auth.js?v=3"></script>
+<script src="/js/booking.js?v=6"></script>
+<script src="/js/autocomplete.js?v=3"></script>
+<script src="/js/addressbook.js?v=4"></script>
+<script src="/js/calendar.js?v=12"></script>
+<script>
+    function toggleTeams(btn) {
+        btn.classList.toggle('active');
+        const span = document.getElementById('teams-text');
+        if (btn.classList.contains('active')) {
+            btn.className = "btn btn-sm btn-active btn-success text-white justify-start active";
+            span.innerText = "Teams Meeting (On)";
+        } else {
+            btn.className = "btn btn-sm btn-outline justify-start";
+            span.innerText = "Teams Meeting";
+        }
+    }
+
+    function setRecurType(val, text) {
+        document.getElementById('recurType').value = val;
+        document.getElementById('recur-type-btn').innerHTML = `${text} <i data-lucide="chevron-down" class="w-4 h-4"></i>`;
+        document.getElementById('recur-dropdown').removeAttribute('open');
+        if (window.lucide) { lucide.createIcons(); }
+        updateRecurringSections();
+    }
+    
+    function openRecurringModal() {
+        document.getElementById('recurringModal').classList.add('modal-open');
+    }
+    function closeRecurringModal() {
+        document.getElementById('recurringModal').classList.remove('modal-open');
+    }
+    function updateRecurringSections() {
+        document.getElementById('dailySection').classList.add('hidden');
+        document.getElementById('weeklySection').classList.add('hidden');
+        document.getElementById('monthlySection').classList.add('hidden');
+        
+        const type = document.getElementById('recurType').value;
+        const rangeSec = document.getElementById('recurRangeSection');
+        if (type === 'daily') document.getElementById('dailySection').classList.remove('hidden');
+        if (type === 'weekly') document.getElementById('weeklySection').classList.remove('hidden');
+        if (type === 'monthly') document.getElementById('monthlySection').classList.remove('hidden');
+        
+        if (type) {
+            if (rangeSec) rangeSec.classList.remove('hidden');
+        } else {
+            if (rangeSec) rangeSec.classList.add('hidden');
+        }
+    }
+    function updateMonthlyPreview() {
+        const interval = document.getElementById('monthlyMonths').value || 1;
+        const mode = document.querySelector('input[name="monthlyMode"]:checked').value;
+        const preview = document.getElementById('monthlyPreview');
+        
+        if (mode === 'absolute') {
+            const day = document.getElementById('monthlyDay').value || 15;
+            preview.innerText = `Jadwal aktif setiap ${interval} bulan pada tanggal ${day}.`;
+        } else {
+            const daySelect = document.getElementById('monthlyDayOfWeek');
+            const dayText = daySelect.options[daySelect.selectedIndex].text;
+            
+            const indexSelect = document.getElementById('monthlyIndex');
+            const indexText = indexSelect.options[indexSelect.selectedIndex].text;
+            
+            preview.innerText = `Jadwal aktif setiap ${interval} bulan pada hari ${dayText} minggu ${indexText}.`;
+        }
+    }
+
+    function saveRecurringModal() {
+        closeRecurringModal();
+        const btn = document.getElementById('recurring-btn');
+        const type = document.getElementById('recurType').value;
+        if (type) {
+            btn.className = "btn btn-sm btn-active btn-success text-white justify-start active";
+            btn.innerHTML = `<i data-lucide="repeat" class="w-4 h-4 mr-2"></i> Recurring: ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        } else {
+            btn.className = "btn btn-sm btn-outline justify-start";
+            btn.innerHTML = `<i data-lucide="repeat" class="w-4 h-4 mr-2"></i> Set Recurring`;
+        }
+        if (window.lucide) { lucide.createIcons(); }
+    }
+</script>
 </body>
 </html>

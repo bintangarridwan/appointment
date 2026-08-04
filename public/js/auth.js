@@ -47,7 +47,7 @@ function signOut() {
         mainWindowRedirectUri: window.location.origin
     };
     myMSALObj.logoutPopup(logoutRequest).then(() => {
-        document.getElementById('global-loader').classList.add('show');
+        document.getElementById('global-loader').classList.add('modal-open');
         window.location.href = '/';
     });
 }
