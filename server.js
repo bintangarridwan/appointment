@@ -8,8 +8,9 @@ const apiRoutes = require('./routes/index');
 const app = express();
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : false
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*'
 }));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 

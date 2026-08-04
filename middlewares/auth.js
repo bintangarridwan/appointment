@@ -2,18 +2,27 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const jwksRsa = require('jwks-rsa');
 
-const jwksClient = jwksRsa({
-    jwksUri: `https://login.microsoftonline.com/${process.env.TENANT_ID}/discovery/v2.0/keys`,
-    cache: true,
-    cacheMaxAge: 86400000
-});
+let jwksClient = null;
+
+function getJwksClient() {
+    if (!jwksClient) {
+        const tenantId = process.env.TENANT_ID || 'common';
+        jwksClient = jwksRsa({
+            jwksUri: `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
+            cache: true,
+            cacheMaxAge: 86400000
+        });
+    }
+    return jwksClient;
+}
 
 function getSigningKey(header, callback) {
-    jwksClient.getSigningKey(header.kid, (err, key) => {
+    getJwksClient().getSigningKey(header.kid, (err, key) => {
         if (err) return callback(err);
         callback(null, key.getPublicKey());
     });
 }
+
 
 function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
