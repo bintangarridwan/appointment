@@ -1,11 +1,21 @@
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
-const jwksRsa = require('jwks-rsa');
 
 let jwksClient = null;
 
-function getJwksClient() {
+async function getJwksClient() {
     if (!jwksClient) {
+        let jwksRsa;
+        try {
+            jwksRsa = require('jwks-rsa');
+        } catch (err) {
+            if (err.code === 'ERR_REQUIRE_ESM') {
+                const mod = await import('jwks-rsa');
+                jwksRsa = mod.default || mod;
+            } else {
+                throw err;
+            }
+        }
         const tenantId = process.env.TENANT_ID || 'common';
         jwksClient = jwksRsa({
             jwksUri: `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
@@ -17,11 +27,16 @@ function getJwksClient() {
 }
 
 function getSigningKey(header, callback) {
-    getJwksClient().getSigningKey(header.kid, (err, key) => {
-        if (err) return callback(err);
-        callback(null, key.getPublicKey());
-    });
+    getJwksClient()
+        .then(client => {
+            client.getSigningKey(header.kid, (err, key) => {
+                if (err) return callback(err);
+                callback(null, key.getPublicKey());
+            });
+        })
+        .catch(err => callback(err));
 }
+
 
 
 function authMiddleware(req, res, next) {

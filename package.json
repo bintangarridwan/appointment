@@ -20,7 +20,8 @@
     "express-rate-limit": "^8.6.1",
     "isomorphic-fetch": "^3.0.0",
     "jsonwebtoken": "^9.0.3",
-    "jwks-rsa": "^4.1.0",
+    "jwks-rsa": "^3.1.0",
+
     "tr46": "^6.0.0"
   },
   "devDependencies": {
