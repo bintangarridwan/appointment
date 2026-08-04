@@ -221,8 +221,12 @@ exports.bookRoom = async (req, res) => {
 
 exports.deleteEvent = async (req, res) => {
     try {
-        const userEmail = req.user.preferred_username;
+        const userEmail = req.user ? (req.user.preferred_username || req.user.upn || req.user.email || '') : '';
+        if (!userEmail) {
+            return res.status(401).json({ error: 'Unauthorized: User email not found in token' });
+        }
         const client = await getGraphClient();
+
 
         const event = await client.api(`/users/${req.params.roomEmail}/events/${req.params.eventId}`)
             .select('organizer,attendees,body,iCalUId')

@@ -5,6 +5,7 @@ const apiLimiter = rateLimit({
     max: 100,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { trustProxy: false },
     message: { error: 'Too many requests, please try again later.' }
 });
 
@@ -13,7 +14,9 @@ const bookingLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: { trustProxy: false },
     message: { error: 'Too many booking attempts, please try again later.' }
 });
 
 module.exports = { apiLimiter, bookingLimiter };
+
