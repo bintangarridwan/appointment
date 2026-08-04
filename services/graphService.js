@@ -1,8 +1,9 @@
 const { Client } = require('@microsoft/microsoft-graph-client');
 require('isomorphic-fetch');
-const cca = require('../config/msal');
+const { getMsalClient } = require('../config/msal');
 
 async function getGraphClient() {
+    const cca = getMsalClient();
     const authResponse = await cca.acquireTokenByClientCredential({
         scopes: ['https://graph.microsoft.com/.default'],
     });
@@ -15,3 +16,4 @@ async function getGraphClient() {
 }
 
 module.exports = { getGraphClient };
+
