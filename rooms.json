@@ -1,6 +1,6 @@
 [
-    { "id": "A", "name": "Ruang Kuah LT 1 (Maks.6 org)", "email": "RM.Kuah@citarasakuliner.com" },
-    { "id": "B", "name": "Ruang Beef LT 2 (Maks.7 org)", "email": "RM.Beef@citarasakuliner.com" },
-    { "id": "C", "name": "Ruang Bojot LT 3 (Maks.7 org)", "email": "RM.Bojot@citarasakuliner.com" },
-    { "id": "D", "name": "Ruang Mozza LT 3 (Maks.25 org)", "email": "RM.Mozza@citarasakuliner.com" }
+    { "id": "A", "name": "Ruang Kuah LT 1", "email": "RM.Kuah@citarasakuliner.com" },
+    { "id": "B", "name": "Ruang Beef LT 2", "email": "RM.Beef@citarasakuliner.com" },
+    { "id": "C", "name": "Ruang Bojot LT 3", "email": "RM.Bojot@citarasakuliner.com" },
+    { "id": "D", "name": "Ruang Mozza LT 3", "email": "RM.Mozza@citarasakuliner.com" }
 ]

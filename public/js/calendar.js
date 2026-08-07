@@ -52,7 +52,7 @@ function updateRoomStatusLogs(events, resources) {
         card.className = `log-card ${statusClass}`;
         
         let html = `
-            <div class="log-room-name">${room.title}</div>
+            <div class="log-room-name">${room.originalTitle || room.title}</div>
             <div class="log-status ${statusClass}">${statusText}</div>
         `;
         
@@ -102,7 +102,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const menu = document.getElementById('room-select-menu');
         const btn = document.getElementById('room-select-btn');
         
+        const capacities = {
+            "Ruang Kuah LT 1": " (Maks.6 org)",
+            "Ruang Beef LT 2": " (Maks.7 org)",
+            "Ruang Bojot LT 3": " (Maks.7 org)",
+            "Ruang Mozza LT 3": " (Maks.25 org)"
+        };
+        
         const resources = rooms.map((room, index) => {
+            const displayName = room.name + (capacities[room.name] || "");
             const li = document.createElement('li');
             const a = document.createElement('a');
             a.innerText = room.name;
@@ -118,7 +126,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             return {
                 id: room.id,
-                title: room.name,
+                title: displayName,
+                originalTitle: room.name,
                 eventColor: colors[index % colors.length]
             };
         });
