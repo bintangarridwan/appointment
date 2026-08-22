@@ -2,6 +2,17 @@
 
 Aplikasi backend & frontend untuk pemesanan ruangan (room booking) terintegrasi dengan **Microsoft Graph API (Azure AD)**.
 
+## Fitur Utama
+
+- **Pemesanan Ruangan**: Integrasi langsung dengan kalender ruang meeting Microsoft 365.
+- **Autentikasi SSO**: Login aman menggunakan akun Azure AD (MSAL).
+- **Auto-Logout Sesi**: Sistem di-background akan otomatis redirect ke halaman login jika token sesi Microsoft kedaluwarsa (idle timeout).
+- **Admin Activity Logs**:
+  - Menyimpan histori aktivitas (Login, Booking, Cancel) ke dalam SharePoint Excel.
+  - Menampilkan ukuran file log Excel secara dinamis (KB/MB) di dashboard.
+  - Filter UI khusus untuk melacak aktivitas pembatalan (Cancel) beserta judul meeting.
+- **Pencegahan Overlap**: Validasi backend untuk mencegah bentrok jadwal pada ruangan yang sama.
+
 ## Teknologi & Bahasa
 
 - **Bahasa:** JavaScript (Node.js)
