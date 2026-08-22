@@ -28,6 +28,10 @@ async function fetchAdminLogs() {
     }
 
     logsWrapper.classList.remove('hidden');
+    
+    const settingsBtn = document.getElementById('admin-settings-btn');
+    if (settingsBtn) settingsBtn.classList.remove('hidden');
+    
     loading.classList.remove('hidden');
     logsBody.innerHTML = '';
     errorDiv.classList.add('hidden');
@@ -135,13 +139,17 @@ function renderLogs() {
         }
 
         const d = new Date(log.time);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = d.getDate();
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const monthStr = months[d.getMonth()];
         const year = d.getFullYear();
         let timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-        // timeStr might be "01:00 AM", replace colon with dot
-        timeStr = timeStr.replace(':', '.');
-        const dateStr = `${day}/${month}/${year} Jam ${timeStr}`;
+        
+        // Memaksa format 24 jam dengan AM/PM (sesuai request) walau agak unik
+        let hours24 = d.getHours().toString().padStart(2, '0');
+        let mins = d.getMinutes().toString().padStart(2, '0');
+        let ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+        const dateStr = `${day} ${monthStr} ${year} ${hours24}:${mins} ${ampm}`;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -149,7 +157,7 @@ function renderLogs() {
             <td>${log.email}</td>
             <td><b>${log.action}</b></td>
             <td>${statusBadge}</td>
-            <td class="text-xs">${log.message}</td>
+            <td class="text-xs whitespace-normal break-words min-w-[200px] max-w-sm">${log.message}</td>
         `;
         logsBody.appendChild(tr);
     });

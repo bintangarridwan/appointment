@@ -17,6 +17,7 @@ router.post('/rooms/:id/book', bookingLimiter, roomController.bookRoom);
 router.delete('/events/:roomEmail/:eventId', roomController.deleteEvent);
 
 const logController = require('../controllers/logController');
+const adminController = require('../controllers/adminController');
 
 router.get('/users/search', userController.searchUsers);
 router.post('/users/schedule', userController.getSchedule);
@@ -24,5 +25,13 @@ router.get('/users/directory', userController.getDirectory);
 
 router.get('/logs', logController.getLogsList);
 router.post('/logs/login', logController.logLogin);
+
+// Admin / Settings Routes
+router.get('/settings/weekend', adminController.getWeekendSetting);
+router.post('/settings/weekend', adminController.toggleWeekendSetting);
+
+router.get('/settings/locks', adminController.getRoomLocks);
+router.post('/settings/locks', adminController.addRoomLock);
+router.delete('/settings/locks/:id', adminController.deleteRoomLock);
 
 module.exports = router;

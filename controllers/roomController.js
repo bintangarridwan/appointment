@@ -3,6 +3,7 @@ const path = require('path');
 const { getGraphClient } = require('../services/graphService');
 const { writeLog } = require('../services/logService');
 const rooms = require('../services/roomService');
+const supabase = require('../services/supabaseService');
 
 exports.getRooms = (req, res) => {
     res.json(rooms);
@@ -140,14 +141,66 @@ exports.bookRoom = async (req, res) => {
         const room = rooms.find(r => r.id === req.params.id);
         if (!room) return res.status(404).send('Room not found');
 
-        const client = await getGraphClient();
-        
+        const instances = generateInstances(start, end, recurrence);
+
+        // TASK 3: Cek Blokir Akhir Pekan (Weekend Block)
+        const { data: settingData } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'allow_weekend_booking')
+            .single();
+            
+        const allowWeekend = settingData ? settingData.value : true;
+
+        if (!allowWeekend) {
+            for (let inst of instances) {
+                const day = inst.start.getDay(); // 0 = Sunday, 6 = Saturday
+                if (day === 0 || day === 6) {
+                    const errorMsg = "Pemesanan dibatalkan: Admin sedang menutup akses pemesanan untuk hari Sabtu dan Minggu.";
+                    writeLog(organizerEmail, "BOOKING", "FAILED", errorMsg);
+                    return res.status(400).json({ error: errorMsg });
+                }
+            }
+        }
+
+        // TASK 4: Cek Kunci Ruangan (Blackout Dates)
+        // Kita ambil semua kunci untuk ruangan ini yang waktunya bersinggungan dengan checkStart dan checkEnd
         let checkStart = start;
         let checkEnd = end;
         if (recurrence) {
             checkEnd = new Date(recurrence.range.endDate + "T23:59:59Z").toISOString();
         }
 
+        const { data: locks, error: lockErr } = await supabase
+            .from('room_locks')
+            .select('*')
+            .eq('room_email', room.email)
+            // Kunci ruangan tumpang tindih jika: lock.start < checkEnd AND lock.end > checkStart
+            .lt('start_time', checkEnd)
+            .gt('end_time', checkStart);
+
+        if (!lockErr && locks && locks.length > 0) {
+            // Karena ini recurrence, kita cek lebih detail per instance apakah benar-benar nabrak
+            for (let inst of instances) {
+                const instStart = inst.start.getTime();
+                const instEnd = inst.end.getTime();
+                
+                for (let lock of locks) {
+                    const lockStart = new Date(lock.start_time).getTime();
+                    const lockEnd = new Date(lock.end_time).getTime();
+                    
+                    // Cek overlap
+                    if (instStart < lockEnd && instEnd > lockStart) {
+                        const errorMsg = `Pemesanan dibatalkan: Ruangan sedang dikunci oleh Admin. Alasan: ${lock.reason}`;
+                        writeLog(organizerEmail, "BOOKING", "FAILED", errorMsg);
+                        return res.status(400).json({ error: errorMsg });
+                    }
+                }
+            }
+        }
+
+        const client = await getGraphClient();
+        
         const overlapRes = await client.api(`/users/${room.email}/calendarView`)
             .query({ startDateTime: checkStart, endDateTime: checkEnd })
             .select('subject,start,end')
@@ -155,7 +208,6 @@ exports.bookRoom = async (req, res) => {
             .get();
 
         const existingEvents = overlapRes.value || [];
-        const instances = generateInstances(start, end, recurrence);
         const conflicts = [];
         
         for (let inst of instances) {

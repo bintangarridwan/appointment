@@ -57,6 +57,19 @@
     <div class="modal-backdrop" onclick="document.getElementById('confirmCancelModal').classList.remove('modal-open')"></div>
 </div>
 
+<!-- Confirm Delete Lock Modal -->
+<div id="confirmDeleteLockModal" class="modal z-[9999]">
+    <div class="modal-box text-center">
+        <h3 class="font-bold text-lg text-error mb-2"><i data-lucide="alert-triangle" class="inline w-6 h-6 mr-2"></i> Buka Kunci Ruangan</h3>
+        <p class="py-4">Apakah Anda yakin ingin menghapus kunci pada ruangan ini? Orang-orang akan bisa memesan ruangan ini kembali.</p>
+        <div class="modal-action justify-center gap-4 mt-6">
+            <button id="btnConfirmDeleteLock" class="btn btn-error w-28 text-white">Buka Kunci</button>
+            <button class="btn btn-neutral w-28" onclick="document.getElementById('confirmDeleteLockModal').classList.remove('modal-open')">Batal</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('confirmDeleteLockModal').classList.remove('modal-open')"></div>
+</div>
+
 <!-- Error Modal -->
 <div id="errorModal" class="modal">
     <div class="modal-box text-center">
@@ -67,6 +80,94 @@
         </div>
     </div>
     <div class="modal-backdrop" onclick="document.getElementById('errorModal').classList.remove('modal-open')"></div>
+</div>
+
+<!-- Admin Settings Modal -->
+<div id="adminSettingsModal" class="modal">
+    <div class="modal-box max-w-4xl p-0 overflow-hidden flex h-[600px]">
+        
+        <!-- Left Sidebar Menu -->
+        <div class="w-64 bg-base-200 p-6 border-r border-base-300 flex flex-col">
+            <h3 class="font-bold text-xl mb-6 text-primary flex items-center">
+                <i data-lucide="settings" class="w-6 h-6 mr-2"></i> Settings
+            </h3>
+            <ul class="menu menu-md p-0 w-full text-base-content gap-1">
+                <li><a class="active font-medium" id="tab-general" onclick="switchAdminTab('general')">General</a></li>
+                <li><a class="font-medium" id="tab-blackout" onclick="switchAdminTab('blackout')">Blackout Dates</a></li>
+            </ul>
+        </div>
+        
+        <!-- Right Content Area -->
+        <div class="flex-1 p-8 overflow-y-auto relative bg-base-100">
+            <button class="btn btn-sm btn-circle btn-ghost absolute right-4 top-4" onclick="document.getElementById('adminSettingsModal').classList.remove('modal-open')">✕</button>
+            
+            <!-- Tab Content 1: General -->
+            <div id="settings-general" class="block animate-fade-in">
+                <h2 class="text-2xl font-bold mb-1">General Settings</h2>
+                <p class="text-sm opacity-70 mb-4">Manage core system behaviors and rules.</p>
+                <div class="divider mt-0 mb-6"></div>
+                
+                <div class="form-control flex flex-row items-center justify-between bg-base-100 border border-base-300 p-5 rounded-xl shadow-sm">
+                    <div class="flex flex-col gap-1 pr-4">
+                        <span class="label-text font-bold text-lg">Allow Weekend Booking</span> 
+                        <span class="text-sm opacity-70">Turn off to completely block all room reservations on Saturday and Sunday across the system.</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input type="checkbox" id="toggle-weekend" class="sr-only peer" onchange="toggleWeekendSetting()">
+                        <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500 shadow-inner"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab Content 2: Blackout Dates -->
+            <div id="settings-blackout" class="hidden animate-fade-in">
+                <h2 class="text-2xl font-bold mb-1">Blackout Dates</h2>
+                <p class="text-sm opacity-70 mb-4">Lock specific rooms for maintenance, holidays, or private events.</p>
+                <div class="divider mt-0 mb-6"></div>
+                
+                <div class="bg-base-200/50 p-6 rounded-xl border border-base-300 mb-6">
+                    <h4 class="font-bold mb-4 flex items-center"><i data-lucide="lock" class="w-4 h-4 mr-2"></i> Create New Lock</h4>
+                    <div class="flex flex-col gap-4">
+                        <!-- DaisyUI Custom Dropdown -->
+                        <input type="hidden" id="lock-room" value="" />
+                        <details class="dropdown w-full" id="lock-room-dropdown">
+                            <summary class="btn bg-base-100 border-base-300 w-full justify-between font-normal" id="lock-room-display">
+                                Select Room to Lock
+                                <i data-lucide="chevron-down" class="w-4 h-4 opacity-50"></i>
+                            </summary>
+                            <ul class="p-2 shadow menu dropdown-content z-[50] bg-base-100 rounded-box w-full mt-1 border border-base-300">
+                                <li><a onclick="selectLockRoom('RM.Kuah@citarasakuliner.com', 'Ruang Kuah')">Ruang Kuah</a></li>
+                                <li><a onclick="selectLockRoom('RM.Beef@citarasakuliner.com', 'Ruang Beef')">Ruang Beef</a></li>
+                                <li><a onclick="selectLockRoom('RM.Bojot@citarasakuliner.com', 'Ruang Bojot')">Ruang Bojot</a></li>
+                                <li><a onclick="selectLockRoom('RM.Mozza@citarasakuliner.com', 'Ruang Mozza')">Ruang Mozza</a></li>
+                            </ul>
+                        </details>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-control">
+                                <label class="label p-1"><span class="label-text text-xs font-medium">Start Time</span></label>
+                                <input type="datetime-local" id="lock-start" class="input input-bordered w-full" />
+                            </div>
+                            <div class="form-control">
+                                <label class="label p-1"><span class="label-text text-xs font-medium">End Time</span></label>
+                                <input type="datetime-local" id="lock-end" class="input input-bordered w-full" />
+                            </div>
+                        </div>
+                        <div class="form-control mt-2">
+                            <input type="text" id="lock-reason" placeholder="Reason (e.g. AC Maintenance, Plafon Bocor)" class="input input-bordered w-full" />
+                        </div>
+                        <button class="btn btn-primary mt-2" onclick="addRoomLock()">Lock Room</button>
+                    </div>
+                </div>
+
+                <h4 class="font-bold mb-4">Active Locks</h4>
+                <ul id="active-locks-list" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    <li class="text-sm opacity-50 text-center py-4">Loading...</li>
+                </ul>
+            </div>
+            
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('adminSettingsModal').classList.remove('modal-open')"></div>
 </div>
 
 <!-- Address Book Modal -->
@@ -288,10 +389,13 @@
             </button>
         </div>
         
-        <div id="auth-section" class="card bg-base-200 p-3 mt-auto">
+        <div id="auth-section" class="card bg-base-200 p-3 mt-auto flex flex-col">
             <div id="auth-user-info" class="text-xs font-medium text-center break-words mb-2">Loading...</div>
-            <button class="btn btn-error text-white" id="logout-btn" onclick="signOut()">
+            <button class="btn btn-error text-white w-full" id="logout-btn" onclick="signOut()">
                 <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
+            </button>
+            <button class="btn btn-neutral text-white w-full mt-2 hidden" id="admin-settings-btn" onclick="document.getElementById('adminSettingsModal').classList.add('modal-open')">
+                <i data-lucide="settings" class="w-4 h-4"></i> Settings
             </button>
         </div>
     </aside>
@@ -330,10 +434,11 @@
         </div>
         
         <!-- Active Logs -->
-        <div class="card bg-base-100 shadow-xl p-4 hidden shrink-0" id="active-logs-wrapper">
+        <div class="card bg-base-100 shadow-xl p-4 shrink-0" id="active-logs-wrapper">
             <h4 class="font-bold flex items-center gap-2 mb-4"><i data-lucide="activity"></i> Current Room Status</h4>
             <div id="active-logs" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
         </div>
+
         <!-- Admin Activity Logs -->
         <div class="card bg-base-100 shadow-xl p-4 mt-6 hidden shrink-0" id="admin-logs-wrapper">
             <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
@@ -390,6 +495,7 @@
 <script src="/js/addressbook.js?v=4"></script>
 <script src="/js/calendar.js?v=12"></script>
 <script src="/js/logs.js?v=1"></script>
+<script src="/js/admin.js?v=1"></script>
 <script>
     function toggleTeams(btn) {
         btn.classList.toggle('active');

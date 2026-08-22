@@ -10,12 +10,12 @@ function closeEventModal() {
 function updateRoomStatusLogs(events, resources) {
     const wrapper = document.getElementById('active-logs-wrapper');
     const container = document.getElementById('active-logs');
-    if (!events || events.length === 0) {
-        wrapper.style.display = 'none';
-        return;
-    }
-    wrapper.style.display = 'block';
+    
+    // Selalu tampilkan, pastikan tidak hidden
+    wrapper.classList.remove('hidden');
     container.innerHTML = '';
+    
+    if (!events) events = []; // Fallback kosong
     
     const now = new Date();
     

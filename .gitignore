@@ -21,6 +21,10 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Documentation & Tracking (Do not push)
+DATABASE_PLAN.md
+todo.md
+
 # Logs
 logs/
 *.log

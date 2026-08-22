@@ -1,20 +1,18 @@
-const { getGraphClient } = require('./graphService');
-
-const SITE_ID = 'citarasakuliner.sharepoint.com,dd91e39f-0bec-457b-8322-ac67d232f602,f7286f5b-de72-4c2c-b542-917d6b64b266';
-const FILE_ID = '2eb5a897-31a6-4b9c-b49d-a8d0cc7d9873';
-const TABLE_NAME = 'TableLog';
+const supabase = require('./supabaseService');
 
 async function writeLog(email, action, status, message) {
     try {
-        const client = await getGraphClient();
-        const time = new Date().toISOString();
-        
-        // Fire and forget, no need to wait
-        client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}/workbook/tables/${TABLE_NAME}/rows`).post({
-            "values": [
-                [time, email || 'Unknown', action, status, message || '']
-            ]
-        }).catch(err => console.error("Failed to write log to Excel:", err.message));
+        // Fire and forget
+        supabase.from('activity_logs').insert([
+            { 
+                user_email: email || 'Unknown', 
+                action: action, 
+                status: status, 
+                message: message || '' 
+            }
+        ]).then(({ error }) => {
+            if (error) console.error("Failed to write log to Supabase:", error.message);
+        });
         
     } catch (e) {
         console.error("Log error:", e.message);
@@ -23,29 +21,27 @@ async function writeLog(email, action, status, message) {
 
 async function getLogs() {
     try {
-        const client = await getGraphClient();
-        // Get rows from the table and file metadata concurrently
-        const [res, itemRes] = await Promise.all([
-            client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}/workbook/tables/${TABLE_NAME}/rows`).get(),
-            client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}`).select('size').get().catch(() => ({ size: null }))
-        ]);
-        
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1000); // Batasi 1000 log terakhir agar tidak memberatkan memori
+
+        if (error) throw error;
+
         let logs = [];
-        if (res && res.value) {
-            // Map rows back to objects. Headers: Waktu, Email, Aksi, Status, Pesan_Eror
-            // We read them backwards to get newest first
-            const rows = res.value.reverse();
-            logs = rows.map(r => {
-                return {
-                    time: r.values[0][0],
-                    email: r.values[0][1],
-                    action: r.values[0][2],
-                    status: r.values[0][3],
-                    message: r.values[0][4]
-                };
-            }).filter(log => log.time); // filter out empty rows
+        if (data) {
+            logs = data.map(r => ({
+                time: r.created_at,
+                email: r.user_email,
+                action: r.action,
+                status: r.status,
+                message: r.message
+            }));
         }
-        return { logs, size: itemRes.size };
+        
+        // Supabase tidak punya 'file size', kita kembalikan 0 agar UI tidak rusak
+        return { logs, size: 0 };
     } catch (e) {
         console.error("Fetch log error:", e.message);
         return { logs: [], size: null };
