@@ -342,10 +342,11 @@
                     <button class="btn btn-sm btn-outline" onclick="fetchAdminLogs()" title="Refresh Logs">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                     </button>
-                    <div class="join">
+                    <div class="join overflow-x-auto">
                         <button class="join-item btn btn-sm btn-active" onclick="filterLogs('ALL')" id="filter-all">All</button>
                         <button class="join-item btn btn-sm" onclick="filterLogs('LOGIN')" id="filter-login">Login</button>
-                        <button class="join-item btn btn-sm" onclick="filterLogs('SUCCESS')" id="filter-success">Success</button>
+                        <button class="join-item btn btn-sm" onclick="filterLogs('SUCCESS')" id="filter-success">Booking</button>
+                        <button class="join-item btn btn-sm" onclick="filterLogs('CANCEL')" id="filter-cancel">Cancel</button>
                         <button class="join-item btn btn-sm" onclick="filterLogs('FAILED')" id="filter-failed">Failed</button>
                     </div>
                 </div>

@@ -237,7 +237,7 @@ exports.deleteEvent = async (req, res) => {
 
 
         const event = await client.api(`/users/${req.params.roomEmail}/events/${req.params.eventId}`)
-            .select('organizer,attendees,body,iCalUId')
+            .select('organizer,attendees,body,iCalUId,subject')
             .get();
 
         const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
@@ -246,6 +246,8 @@ exports.deleteEvent = async (req, res) => {
         if (actualOrganizer !== userEmail.toLowerCase() && !isAdmin) {
             return res.status(403).json({ error: 'Hanya organizer atau Admin yang bisa membatalkan meeting ini' });
         }
+
+        const subjectTitle = event.subject || 'Meeting';
 
         if (actualOrganizer && event.iCalUId) {
             // Cari event asli di kalender organizer pakai iCalUId
@@ -260,15 +262,20 @@ exports.deleteEvent = async (req, res) => {
                 await client.api(`/users/${actualOrganizer}/events/${orgEventId}/cancel`).post({
                     Comment: "Dibatalkan melalui sistem booking ruangan."
                 });
+                writeLog(userEmail, "CANCEL", "SUCCESS", `Membatalkan '${subjectTitle}' di ${req.params.roomEmail}`);
                 return res.status(200).json({ message: 'Event canceled successfully for all attendees' });
             }
         }
 
         // Fallback jika tidak nemu di organizer: hapus dari kalender ruangan saja
         await client.api(`/users/${req.params.roomEmail}/events/${req.params.eventId}`).delete();
+        writeLog(userEmail, "CANCEL", "SUCCESS", `Membatalkan '${subjectTitle}' di ${req.params.roomEmail}`);
         res.status(200).json({ message: 'Event removed from room successfully' });
     } catch (error) {
         console.error('Error canceling event:', error.message);
+        const userEmail = req.user ? (req.user.preferred_username || req.user.email) : 'Unknown';
+        writeLog(userEmail, "CANCEL", "FAILED", error.message);
         res.status(500).send(error.message);
     }
 };
+

@@ -60,7 +60,7 @@ function filterLogs(filter) {
     currentPage = 1;
     
     // Update button active states
-    ['all', 'login', 'success', 'failed'].forEach(f => {
+    ['all', 'login', 'success', 'cancel', 'failed'].forEach(f => {
         const btn = document.getElementById('filter-' + f);
         if (btn) btn.classList.remove('btn-active');
     });
@@ -87,6 +87,8 @@ function renderLogs() {
         filtered = allLogs.filter(l => l.action === 'LOGIN');
     } else if (currentLogFilter === 'SUCCESS') {
         filtered = allLogs.filter(l => l.status === 'SUCCESS' && l.action === 'BOOKING');
+    } else if (currentLogFilter === 'CANCEL') {
+        filtered = allLogs.filter(l => l.action === 'CANCEL');
     } else if (currentLogFilter === 'FAILED') {
         filtered = allLogs.filter(l => l.status === 'FAILED');
     }
