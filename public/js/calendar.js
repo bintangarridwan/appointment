@@ -288,9 +288,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
                 method: 'DELETE'
             })
-            .then(res => {
+            .then(async res => {
                 if (res.status === 403) {
-                    showToast("Akses ditolak! Hanya Requester yang dapat membatalkan meeting ini.", "error");
+                    const data = await res.json().catch(() => ({}));
+                    showToast(data.error || "Akses ditolak! Hanya Requester atau Admin yang dapat membatalkan meeting ini.", "error");
                     return;
                 }
                 if (!res.ok) {

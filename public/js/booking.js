@@ -8,7 +8,7 @@ async function bookRoom() {
     const start = (dateStr && startTimeStr) ? `${dateStr}T${startTimeStr}` : '';
     const end = (dateStr && endTimeStr) ? `${dateStr}T${endTimeStr}` : '';
     const organizerEmail = document.getElementById('organizer').value;
-    const attendeesStr = document.getElementById('attendees').value;
+    const attendeesStr = window.selectedAttendeesChips ? window.selectedAttendeesChips.map(c => c.email).join(',') : '';
     const isOnline = document.getElementById('teams-toggle').classList.contains('active');
     
     // Recurring logic
@@ -106,6 +106,7 @@ async function bookRoom() {
                 errorMsg = await res.text();
             }
             showToast("Booking failed: " + errorMsg, "error");
+            if (typeof fetchAdminLogs === 'function') fetchAdminLogs();
         }
     } catch (error) {
         showToast("An error occurred: " + error.message, "error");

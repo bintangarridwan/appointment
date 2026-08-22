@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const { getGraphClient } = require('../services/graphService');
+const { writeLog } = require('../services/logService');
 const rooms = require('../services/roomService');
 
 exports.getRooms = (req, res) => {
@@ -169,7 +172,9 @@ exports.bookRoom = async (req, res) => {
         if (conflicts.length > 0) {
             const conflictDates = conflicts.slice(0, 3).map(c => c.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })).join(', ');
             const more = conflicts.length > 3 ? ` dan ${conflicts.length - 3} hari lainnya` : '';
-            return res.status(400).json({ error: `Pemesanan dibatalkan: ${room.name} sudah terpakai pada ${conflictDates}${more}. Silakan ubah jadwal Anda.` });
+            const errorMsg = `Pemesanan dibatalkan: ${room.name} sudah terpakai pada ${conflictDates}${more}. Silakan ubah jadwal Anda.`;
+            writeLog(organizerEmail, "BOOKING", "FAILED", errorMsg);
+            return res.status(400).json({ error: errorMsg });
         }
 
         let attendeeList = [
@@ -212,9 +217,12 @@ exports.bookRoom = async (req, res) => {
 
         const response = await client.api(`/users/${organizerEmail}/events`).post(event);
 
+        writeLog(organizerEmail, "BOOKING", "SUCCESS", `Berhasil booking ${room.name}`);
         res.status(201).json({ message: 'Booking successful', event: response });
     } catch (error) {
         console.error('Error booking room:', error.message);
+        const organizerEmail = req.body.organizerEmail || 'Unknown';
+        writeLog(organizerEmail, "BOOKING", "FAILED", error.message);
         res.status(500).send(error.message);
     }
 };
@@ -233,9 +241,10 @@ exports.deleteEvent = async (req, res) => {
             .get();
 
         const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
+        const isAdmin = userEmail.toLowerCase() === 'bintang.arridwan@citarasakuliner.com';
 
-        if (actualOrganizer !== userEmail.toLowerCase()) {
-            return res.status(403).json({ error: 'Hanya organizer yang bisa membatalkan meeting ini' });
+        if (actualOrganizer !== userEmail.toLowerCase() && !isAdmin) {
+            return res.status(403).json({ error: 'Hanya organizer atau Admin yang bisa membatalkan meeting ini' });
         }
 
         if (actualOrganizer && event.iCalUId) {

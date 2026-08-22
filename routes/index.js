@@ -16,8 +16,13 @@ router.get('/events', roomController.getAllEvents);
 router.post('/rooms/:id/book', bookingLimiter, roomController.bookRoom);
 router.delete('/events/:roomEmail/:eventId', roomController.deleteEvent);
 
+const logController = require('../controllers/logController');
+
 router.get('/users/search', userController.searchUsers);
 router.post('/users/schedule', userController.getSchedule);
 router.get('/users/directory', userController.getDirectory);
+
+router.get('/logs', logController.getLogsList);
+router.post('/logs/login', logController.logLogin);
 
 module.exports = router;

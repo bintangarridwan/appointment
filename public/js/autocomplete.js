@@ -43,16 +43,57 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Attendees Autocomplete
+// Attendees Autocomplete with Chips
 const attendeesInput = document.getElementById('attendees');
 const attAutoList = document.getElementById('attendees-autocomplete-list');
+const chipsContainer = document.getElementById('attendees-chips');
 let attDebounceTimer;
+window.selectedAttendeesChips = [];
+
+window.renderAttendeesChips = function() {
+    chipsContainer.innerHTML = '';
+    window.selectedAttendeesChips.forEach((chipData, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'badge badge-primary gap-1 p-3 font-medium';
+        const displayName = chipData.name || chipData.email.split('@')[0];
+        chip.innerHTML = `
+            <span title="${chipData.email}">${displayName}</span>
+            <button type="button" class="btn btn-ghost btn-xs px-1 rounded-full hover:bg-primary-focus" onclick="removeAttendeeChip(${index})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        `;
+        chipsContainer.appendChild(chip);
+    });
+}
+
+window.removeAttendeeChip = function(index) {
+    window.selectedAttendeesChips.splice(index, 1);
+    window.renderAttendeesChips();
+};
+
+function addAttendeeChip(email, name = '') {
+    email = email.trim();
+    if (email && !window.selectedAttendeesChips.find(c => c.email === email)) {
+        window.selectedAttendeesChips.push({ email, name });
+        window.renderAttendeesChips();
+    }
+    attendeesInput.value = '';
+    attAutoList.style.display = 'none';
+}
+
+attendeesInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addAttendeeChip(this.value);
+    } else if (e.key === 'Backspace' && this.value === '' && window.selectedAttendeesChips.length > 0) {
+        window.selectedAttendeesChips.pop();
+        window.renderAttendeesChips();
+    }
+});
 
 attendeesInput.addEventListener('input', function() {
     clearTimeout(attDebounceTimer);
-    const fullVal = this.value;
-    const parts = fullVal.split(',');
-    const currentQuery = parts[parts.length - 1].trim();
+    const currentQuery = this.value.trim();
 
     if (!currentQuery || currentQuery.length < 2) {
         attAutoList.style.display = 'none';
@@ -100,6 +141,7 @@ attendeesInput.addEventListener('input', function() {
             if (users.length > 0) {
                 users.forEach(u => {
                     const div = document.createElement('div');
+                    div.className = 'p-2 border-b cursor-pointer hover:bg-base-200';
                     let statusHtml = '';
                     if (u.status) {
                         const color = u.status === 'free' ? '#10b981' : (u.status === 'busy' ? '#ef4444' : '#f59e0b');
@@ -107,9 +149,7 @@ attendeesInput.addEventListener('input', function() {
                     }
                     div.innerHTML = `<b>${u.name}</b> ${statusHtml}<br><small>${u.email}</small>`;
                     div.addEventListener('click', () => {
-                        parts[parts.length - 1] = ' ' + u.email;
-                        attendeesInput.value = parts.join(',').trim() + ', ';
-                        attAutoList.style.display = 'none';
+                        addAttendeeChip(u.email, u.name);
                         attendeesInput.focus();
                     });
                     attAutoList.appendChild(div);

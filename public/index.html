@@ -116,6 +116,20 @@
                 const loginResponse = await myMSALObj.loginPopup({ scopes: ["User.Read"] });
                 if (loginResponse.account) {
                     document.getElementById('global-loader').classList.add('show');
+                    
+                    // Log the login event silently
+                    try {
+                        await fetch('/api/logs/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${loginResponse.idToken}`
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Log error', e);
+                    }
+                    
                     window.location.href = '/dashboard.html';
                 }
             } catch (error) {

@@ -71,14 +71,12 @@ async function openAddressBook() {
     }
 }
 
-function addFromAddressBook(email) {
-    const inp = document.getElementById('attendees');
-    let current = inp.value.trim();
-    if (current.length > 0 && !current.endsWith(',')) {
-        current += ', ';
-    }
-    if (!current.includes(email)) {
-        inp.value = current + email + ', ';
+function addFromAddressBook(email, name = '') {
+    if (window.selectedAttendeesChips && !window.selectedAttendeesChips.find(c => c.email === email)) {
+        window.selectedAttendeesChips.push({ email, name });
+        if (typeof window.renderAttendeesChips === 'function') {
+            window.renderAttendeesChips();
+        }
         showToast(email + ' ditambahkan', 'success');
     }
 }
@@ -120,7 +118,7 @@ function renderAddressBookPage() {
             <td style="padding: 10px;">${u.title}<br><span style="color:#64748b; font-size: 11px;">${u.department}</span></td>
             <td style="padding: 10px;">${statusHtml}</td>
             <td style="padding: 10px; text-align: center;">
-                <button type="button" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="addFromAddressBook('${u.email}')">Add</button>
+                <button type="button" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="addFromAddressBook('${u.email}', '${u.name.replace(/'/g, "\\'")}')">Add</button>
             </td>
         `;
         tbody.appendChild(tr);
