@@ -160,27 +160,183 @@ async function deleteRoomLock(id) {
 }
 
 function switchAdminTab(tabName) {
-    const tabGeneral = document.getElementById('tab-general');
-    const tabBlackout = document.getElementById('tab-blackout');
-    const contentGeneral = document.getElementById('settings-general');
-    const contentBlackout = document.getElementById('settings-blackout');
+    const tabs = ['general', 'blackout', 'admins'];
     
-    if (tabName === 'general') {
-        tabGeneral.classList.add('active');
-        tabBlackout.classList.remove('active');
-        contentGeneral.classList.remove('hidden');
-        contentGeneral.classList.add('block');
-        contentBlackout.classList.remove('block');
-        contentBlackout.classList.add('hidden');
-    } else {
-        tabBlackout.classList.add('active');
-        tabGeneral.classList.remove('active');
-        contentBlackout.classList.remove('hidden');
-        contentBlackout.classList.add('block');
-        contentGeneral.classList.remove('block');
-        contentGeneral.classList.add('hidden');
+    tabs.forEach(tab => {
+        const tabBtn = document.getElementById(`tab-${tab}`);
+        const tabContent = document.getElementById(`settings-${tab}`);
+        
+        if (tab === tabName) {
+            tabBtn.classList.add('active');
+            tabContent.classList.remove('hidden');
+            tabContent.classList.add('block');
+        } else {
+            tabBtn.classList.remove('active');
+            tabContent.classList.remove('block');
+            tabContent.classList.add('hidden');
+        }
+    });
+}
+
+async function fetchAdminUsers() {
+    try {
+        const response = await authFetch('/api/settings/admins');
+        const data = await response.json();
+        
+        const list = document.getElementById('admin-users-list');
+        if (data.admins && data.admins.length > 0) {
+            list.innerHTML = data.admins.map(admin => `
+                <li class="flex justify-between items-center p-3 bg-base-200 rounded-lg border border-base-300">
+                    <div class="flex items-center gap-3">
+                        <div class="avatar placeholder">
+                            <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                <span class="text-xs">${admin.email.charAt(0).toUpperCase()}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm">${admin.email}</span>
+                            <span class="text-[10px] opacity-50">Added on: ${new Date(admin.created_at).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    ${admin.email !== 'bintang.arridwan@citarasakuliner.com' ? 
+                        `<button class="btn btn-xs btn-ghost text-error" onclick="deleteAdminUser('${admin.email}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : 
+                        `<span class="badge badge-primary badge-sm">Super Admin</span>`
+                    }
+                </li>
+            `).join('');
+            if (window.lucide) window.lucide.createIcons();
+        } else {
+            list.innerHTML = `<li class="text-xs opacity-50 text-center py-4">Belum ada admin tambahan.</li>`;
+        }
+    } catch (e) {
+        console.error("Failed to fetch admins", e);
+    }
+}
+
+async function addAdminUser() {
+    const emailInput = document.getElementById('new-admin-email');
+    const email = emailInput.value.trim().toLowerCase();
+    
+    if (!email || !email.includes('@')) {
+        if (typeof showToast !== 'undefined') showToast("Email tidak valid.", "error");
+        return;
+    }
+    
+    try {
+        const response = await authFetch('/api/settings/admins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            if (typeof showToast !== 'undefined') showToast("Admin berhasil ditambahkan.", "success");
+            emailInput.value = '';
+            fetchAdminUsers();
+        } else {
+            throw new Error(data.error);
+        }
+    } catch (e) {
+        console.error("Failed to add admin", e);
+        if (typeof showToast !== 'undefined') showToast("Gagal menambah admin: " + e.message, "error");
+    }
+}
+
+async function deleteAdminUser(email) {
+    const modal = document.getElementById('confirmDeleteAdminModal');
+    const text = document.getElementById('confirmDeleteAdminText');
+    text.innerHTML = `Apakah Anda yakin ingin mencabut hak akses admin dari <strong>${email}</strong>?`;
+    
+    modal.classList.add('modal-open');
+    if (window.lucide) window.lucide.createIcons();
+    
+    return new Promise((resolve) => {
+        const btnYes = document.getElementById('btnConfirmDeleteAdmin');
+        
+        // Remove old listeners
+        const newBtnYes = btnYes.cloneNode(true);
+        btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+        
+        newBtnYes.onclick = async () => {
+            modal.classList.remove('modal-open');
+            try {
+                const response = await authFetch('/api/settings/admins/' + encodeURIComponent(email), {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    if (typeof showToast !== 'undefined') showToast("Admin berhasil dihapus.", "success");
+                    fetchAdminUsers();
+                }
+            } catch (e) {
+                console.error("Failed to delete admin", e);
+                if (typeof showToast !== 'undefined') showToast("Gagal menghapus admin: " + e.message, "error");
+            }
+            resolve();
+        };
+    });
+}
+
+function initAdminAutocomplete() {
+    const adminEmailInput = document.getElementById('new-admin-email');
+    const adminAutoList = document.getElementById('admin-autocomplete-list');
+    let adminDebounceTimer;
+
+    if (adminEmailInput && adminAutoList) {
+        adminEmailInput.addEventListener('input', function() {
+            clearTimeout(adminDebounceTimer);
+            const val = this.value;
+            if (!val || val.length < 2) {
+                adminAutoList.style.display = 'none';
+                return;
+            }
+            
+            adminDebounceTimer = setTimeout(async () => {
+                adminAutoList.innerHTML = '<div class="p-3 text-sm opacity-50 text-center">Mencari...</div>';
+                adminAutoList.style.display = 'block';
+                
+                try {
+                    const res = await authFetch(`/api/users/search?q=${encodeURIComponent(val)}`);
+                    const users = await res.json();
+                    adminAutoList.innerHTML = '';
+                    
+                    if (users.length > 0) {
+                        users.forEach(u => {
+                            const div = document.createElement('div');
+                            div.className = "p-3 hover:bg-base-200 cursor-pointer border-b border-base-200 last:border-0 font-bold text-sm";
+                            div.innerHTML = u.name;
+                            div.addEventListener('click', () => {
+                                adminEmailInput.value = u.email;
+                                adminAutoList.style.display = 'none';
+                            });
+                            adminAutoList.appendChild(div);
+                        });
+                        adminAutoList.style.display = 'block';
+                    } else {
+                        adminAutoList.innerHTML = '<div class="p-3 text-sm opacity-50 text-center">Tidak ditemukan.</div>';
+                        adminAutoList.style.display = 'block';
+                    }
+                } catch (err) {
+                    console.error("Admin search error:", err);
+                    adminAutoList.innerHTML = '<div class="p-3 text-sm text-error text-center">Gagal mencari.</div>';
+                    adminAutoList.style.display = 'block';
+                }
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== adminEmailInput && !adminAutoList.contains(e.target)) {
+                adminAutoList.style.display = 'none';
+            }
+        });
     }
 }
 
 // Call on load
-setTimeout(fetchAdminSettings, 2000);
+setTimeout(() => {
+    fetchAdminSettings();
+    fetchAdminUsers();
+    initAdminAutocomplete();
+}, 2000);

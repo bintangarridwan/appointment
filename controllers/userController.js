@@ -10,7 +10,8 @@ exports.searchUsers = async (req, res) => {
         try {
             const client = await getGraphClient();
             const response = await client.api('/users')
-                .filter(`startswith(mail,'${query}') or startswith(displayName,'${query}')`)
+                .header('ConsistencyLevel', 'eventual')
+                .search(`"displayName:${query}" OR "mail:${query}"`)
                 .select('displayName,mail')
                 .top(10)
                 .get();

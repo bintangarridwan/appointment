@@ -29,9 +29,14 @@ router.post('/logs/login', logController.logLogin);
 // Admin / Settings Routes
 router.get('/settings/weekend', adminController.getWeekendSetting);
 router.post('/settings/weekend', adminController.toggleWeekendSetting);
-
 router.get('/settings/locks', adminController.getRoomLocks);
 router.post('/settings/locks', adminController.addRoomLock);
 router.delete('/settings/locks/:id', adminController.deleteRoomLock);
+
+// Admin Users Routes
+router.get('/settings/admins/check', adminController.checkAdminStatus);
+router.get('/settings/admins', adminController.getAdminUsers);
+router.post('/settings/admins', adminController.addAdminUser);
+router.delete('/settings/admins/:email', adminController.deleteAdminUser);
 
 module.exports = router;

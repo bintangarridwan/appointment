@@ -150,7 +150,7 @@ exports.bookRoom = async (req, res) => {
             .eq('key', 'allow_weekend_booking')
             .single();
             
-        const allowWeekend = settingData ? settingData.value : true;
+        const allowWeekend = settingData ? (settingData.value === true || settingData.value === 'true') : true;
 
         if (!allowWeekend) {
             for (let inst of instances) {

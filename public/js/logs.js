@@ -22,8 +22,13 @@ async function fetchAdminLogs() {
     }
     const account = typeof myMSALObj !== 'undefined' ? myMSALObj.getActiveAccount() : null;
     if (!account) return;
-    const email = (account.preferred_username || account.username || '').toLowerCase();
-    if (email !== 'bintang.arridwan@citarasakuliner.com') {
+    // Fetch admin status from server
+    try {
+        const response = await authFetch('/api/settings/admins/check');
+        const data = await response.json();
+        if (!data.isAdmin) return;
+    } catch (error) {
+        console.error("Admin check failed", error);
         return;
     }
 

@@ -70,6 +70,19 @@
     <div class="modal-backdrop" onclick="document.getElementById('confirmDeleteLockModal').classList.remove('modal-open')"></div>
 </div>
 
+<!-- Confirm Delete Admin Modal -->
+<div id="confirmDeleteAdminModal" class="modal z-[9999]">
+    <div class="modal-box text-center">
+        <h3 class="font-bold text-lg text-error mb-2"><i data-lucide="user-minus" class="inline w-6 h-6 mr-2"></i> Cabut Akses Admin</h3>
+        <p class="py-4" id="confirmDeleteAdminText">Apakah Anda yakin ingin mencabut hak akses admin dari email ini?</p>
+        <div class="modal-action justify-center gap-4 mt-6">
+            <button id="btnConfirmDeleteAdmin" class="btn btn-error w-28 text-white">Cabut Akses</button>
+            <button class="btn btn-neutral w-28" onclick="document.getElementById('confirmDeleteAdminModal').classList.remove('modal-open')">Batal</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('confirmDeleteAdminModal').classList.remove('modal-open')"></div>
+</div>
+
 <!-- Error Modal -->
 <div id="errorModal" class="modal">
     <div class="modal-box text-center">
@@ -94,6 +107,7 @@
             <ul class="menu menu-md p-0 w-full text-base-content gap-1">
                 <li><a class="active font-medium" id="tab-general" onclick="switchAdminTab('general')">General</a></li>
                 <li><a class="font-medium" id="tab-blackout" onclick="switchAdminTab('blackout')">Blackout Dates</a></li>
+                <li><a class="font-medium" id="tab-admins" onclick="switchAdminTab('admins')">Manage Admin</a></li>
             </ul>
         </div>
         
@@ -161,6 +175,28 @@
 
                 <h4 class="font-bold mb-4">Active Locks</h4>
                 <ul id="active-locks-list" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    <li class="text-sm opacity-50 text-center py-4">Loading...</li>
+                </ul>
+            </div>
+            
+            <!-- Tab Content 3: Manage Admin -->
+            <div id="settings-admins" class="hidden animate-fade-in">
+                <h2 class="text-2xl font-bold mb-1">Manage Admin</h2>
+                <p class="text-sm opacity-70 mb-4">Delegasikan akses menu pengaturan ini ke akun email staf lain.</p>
+                <div class="divider mt-0 mb-6"></div>
+                
+                <div class="flex gap-2 mb-6 relative">
+                    <div class="relative w-full">
+                        <input type="email" id="new-admin-email" placeholder="Contoh: andi@citarasakuliner.com" class="input input-bordered w-full" autocomplete="off" />
+                        <div id="admin-autocomplete-list" class="autocomplete-items hidden bg-base-100 shadow-xl rounded-b-lg border border-base-300 absolute z-[999] w-full max-h-48 overflow-y-auto top-full mt-1"></div>
+                    </div>
+                    <button class="btn btn-primary shrink-0" onclick="addAdminUser()">
+                        <i data-lucide="user-plus" class="w-4 h-4 mr-2"></i> Tambah
+                    </button>
+                </div>
+                
+                <h4 class="font-bold mb-4">Daftar Admin Aktif</h4>
+                <ul id="admin-users-list" class="space-y-3 max-h-60 overflow-y-auto pr-2">
                     <li class="text-sm opacity-50 text-center py-4">Loading...</li>
                 </ul>
             </div>
@@ -491,11 +527,11 @@
 <script src="/js/toast.js?v=9"></script>
 <script src="/js/auth.js?v=3"></script>
 <script src="/js/booking.js?v=6"></script>
-<script src="/js/autocomplete.js?v=3"></script>
+<script src="/js/autocomplete.js?v=7"></script>
 <script src="/js/addressbook.js?v=4"></script>
 <script src="/js/calendar.js?v=12"></script>
 <script src="/js/logs.js?v=1"></script>
-<script src="/js/admin.js?v=1"></script>
+<script src="/js/admin.js?v=5"></script>
 <script>
     function toggleTeams(btn) {
         btn.classList.toggle('active');

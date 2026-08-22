@@ -74,7 +74,96 @@ exports.deleteRoomLock = async (req, res) => {
         if (error) throw error;
         res.json({ success: true });
     } catch (error) {
-        console.error('Error deleting room lock:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Delete room lock error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Admin Users Management
+exports.checkAdminStatus = async (req, res) => {
+    try {
+        const email = req.user.preferred_username || req.user.username;
+        if (!email) return res.status(401).json({ isAdmin: false });
+        
+        // Hardcode superadmin
+        if (email.toLowerCase() === 'bintang.arridwan@citarasakuliner.com') {
+            return res.json({ isAdmin: true });
+        }
+        
+        const { data } = await supabase
+            .from('admin_users')
+            .select('email')
+            .eq('email', email.toLowerCase())
+            .single();
+            
+        return res.json({ isAdmin: !!data });
+    } catch (error) {
+        console.error('Check admin status error:', error);
+        res.json({ isAdmin: false });
+    }
+};
+
+exports.getAdminUsers = async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('admin_users')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+        if (error) throw error;
+        
+        // Selalu sisipkan super admin di urutan pertama walaupun tidak ada di DB
+        const admins = [
+            { email: 'bintang.arridwan@citarasakuliner.com', created_at: new Date().toISOString() },
+            ...data
+        ];
+        
+        res.json({ admins });
+    } catch (error) {
+        console.error('Get admin users error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.addAdminUser = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const added_by = req.user.preferred_username || req.user.username;
+        
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+        
+        const { error } = await supabase
+            .from('admin_users')
+            .insert([{ email: email.toLowerCase(), added_by }]);
+            
+        if (error) {
+            if (error.code === '23505') return res.status(400).json({ error: 'Admin sudah terdaftar.' });
+            throw error;
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Add admin user error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+exports.deleteAdminUser = async (req, res) => {
+    try {
+        const email = req.params.email;
+        if (email === 'bintang.arridwan@citarasakuliner.com') {
+            return res.status(403).json({ error: 'Cannot delete super admin' });
+        }
+        
+        const { error } = await supabase
+            .from('admin_users')
+            .delete()
+            .eq('email', email);
+            
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete admin user error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };
