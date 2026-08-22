@@ -167,3 +167,77 @@ exports.deleteAdminUser = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+exports.getAnalytics = async (req, res) => {
+    try {
+        // Top 3 Rooms
+        const { data: roomLogs, error: roomError } = await supabase
+            .from('activity_logs')
+            .select('message')
+            .eq('action', 'BOOKING')
+            .eq('status', 'SUCCESS');
+            
+        if (roomError) throw roomError;
+
+        const roomCounts = {};
+        roomLogs.forEach(log => {
+            const roomName = log.message.replace('Berhasil booking ', '');
+            roomCounts[roomName] = (roomCounts[roomName] || 0) + 1;
+        });
+        const topRooms = Object.entries(roomCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(e => ({ name: e[0], count: e[1] }));
+
+        // Top 3 Users
+        const { data: userLogs, error: userError } = await supabase
+            .from('activity_logs')
+            .select('user_email')
+            .eq('action', 'BOOKING')
+            .eq('status', 'SUCCESS');
+
+        if (userError) throw userError;
+
+        const userCounts = {};
+        userLogs.forEach(log => {
+            userCounts[log.user_email] = (userCounts[log.user_email] || 0) + 1;
+        });
+        const topUsers = Object.entries(userCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(e => ({ email: e[0], count: e[1] }));
+
+        // Top 3 Hours (Booking creation hours)
+        const { data: timeLogs, error: timeError } = await supabase
+            .from('activity_logs')
+            .select('created_at')
+            .eq('action', 'BOOKING')
+            .eq('status', 'SUCCESS');
+
+        if (timeError) throw timeError;
+
+        const hourCounts = {};
+        timeLogs.forEach(log => {
+            // Supabase returns UTC created_at (e.g. 2026-08-22T08:00:00.000Z)
+            // Convert to Jakarta time (UTC+7)
+            const date = new Date(log.created_at);
+            // Adjust to timezone +7 to get local hour
+            const localHour = (date.getUTCHours() + 7) % 24;
+            const hourStr = `${localHour.toString().padStart(2, '0')}:00`;
+            hourCounts[hourStr] = (hourCounts[hourStr] || 0) + 1;
+        });
+        const topHours = Object.entries(hourCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(e => ({ hour: e[0], count: e[1] }));
+
+        res.json({
+            rooms: topRooms,
+            users: topUsers,
+            hours: topHours
+        });
+    } catch (error) {
+        console.error('Error getting analytics:', error);
+        res.status(500).json({ error: error.message });
+    }
+};

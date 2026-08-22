@@ -39,4 +39,6 @@ router.get('/settings/admins', adminController.getAdminUsers);
 router.post('/settings/admins', adminController.addAdminUser);
 router.delete('/settings/admins/:email', adminController.deleteAdminUser);
 
+router.get('/analytics', adminController.getAnalytics);
+
 module.exports = router;

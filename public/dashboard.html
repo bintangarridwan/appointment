@@ -476,6 +476,34 @@
         </div>
 
         <!-- Admin Activity Logs -->
+        <!-- Analytics Dashboard -->
+        <div class="card bg-base-100 shadow-xl p-4 mt-6 hidden shrink-0" id="admin-analytics-wrapper">
+            <h4 class="font-bold flex items-center gap-2 mb-4"><i data-lucide="bar-chart-2"></i> Analytics Dashboard</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Top Rooms -->
+                <div class="bg-base-200 p-4 rounded-xl">
+                    <h5 class="text-xs opacity-70 font-bold uppercase mb-2">Top 3 Ruangan</h5>
+                    <div id="analytics-rooms" class="flex flex-col gap-2 text-sm">
+                        <span class="opacity-50">Loading...</span>
+                    </div>
+                </div>
+                <!-- Top Hours -->
+                <div class="bg-base-200 p-4 rounded-xl">
+                    <h5 class="text-xs opacity-70 font-bold uppercase mb-2">Top 3 Jam Booking</h5>
+                    <div id="analytics-hours" class="flex flex-col gap-2 text-sm">
+                        <span class="opacity-50">Loading...</span>
+                    </div>
+                </div>
+                <!-- Top Users -->
+                <div class="bg-base-200 p-4 rounded-xl">
+                    <h5 class="text-xs opacity-70 font-bold uppercase mb-2">Top 3 Pemesan</h5>
+                    <div id="analytics-users" class="flex flex-col gap-2 text-sm">
+                        <span class="opacity-50">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card bg-base-100 shadow-xl p-4 mt-6 hidden shrink-0" id="admin-logs-wrapper">
             <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <h4 class="font-bold flex items-center gap-2"><i data-lucide="clipboard-list"></i> Activity Logs (Admin)</h4>
@@ -530,7 +558,7 @@
 <script src="/js/autocomplete.js?v=7"></script>
 <script src="/js/addressbook.js?v=4"></script>
 <script src="/js/calendar.js?v=12"></script>
-<script src="/js/logs.js?v=1"></script>
+<script src="/js/logs.js?v=2"></script>
 <script src="/js/admin.js?v=5"></script>
 <script>
     function toggleTeams(btn) {

@@ -34,6 +34,9 @@ async function fetchAdminLogs() {
 
     logsWrapper.classList.remove('hidden');
     
+    const analyticsWrapper = document.getElementById('admin-analytics-wrapper');
+    if (analyticsWrapper) analyticsWrapper.classList.remove('hidden');
+    
     const settingsBtn = document.getElementById('admin-settings-btn');
     if (settingsBtn) settingsBtn.classList.remove('hidden');
     
@@ -42,6 +45,7 @@ async function fetchAdminLogs() {
     errorDiv.classList.add('hidden');
 
     try {
+        fetchAnalytics(); // Panggil fetch analytics secara asinkron
         const res = await authFetch('/api/logs');
         if (!res.ok) throw new Error('Gagal memuat log');
         
@@ -170,3 +174,53 @@ function renderLogs() {
 
 // Call fetchAdminLogs after a short delay to not block page load
 setTimeout(fetchAdminLogs, 2000);
+
+async function fetchAnalytics() {
+    try {
+        const res = await authFetch('/api/analytics');
+        if (res.ok) {
+            const data = await res.json();
+            
+            // Render Rooms
+            const roomsContainer = document.getElementById('analytics-rooms');
+            if (data.rooms && data.rooms.length > 0) {
+                roomsContainer.innerHTML = data.rooms.map((r, i) => `
+                    <div class="flex justify-between items-center">
+                        <span class="truncate pr-2 font-medium">${i+1}. ${r.name}</span>
+                        <span class="badge badge-sm badge-primary">${r.count}x</span>
+                    </div>
+                `).join('');
+            } else {
+                roomsContainer.innerHTML = '<span class="opacity-50 text-xs">Belum ada data</span>';
+            }
+
+            // Render Hours
+            const hoursContainer = document.getElementById('analytics-hours');
+            if (data.hours && data.hours.length > 0) {
+                hoursContainer.innerHTML = data.hours.map((h, i) => `
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">${i+1}. Jam ${h.hour}</span>
+                        <span class="badge badge-sm badge-secondary">${h.count}x</span>
+                    </div>
+                `).join('');
+            } else {
+                hoursContainer.innerHTML = '<span class="opacity-50 text-xs">Belum ada data</span>';
+            }
+
+            // Render Users
+            const usersContainer = document.getElementById('analytics-users');
+            if (data.users && data.users.length > 0) {
+                usersContainer.innerHTML = data.users.map((u, i) => `
+                    <div class="flex justify-between items-center">
+                        <span class="truncate pr-2 font-medium" title="${u.email}">${i+1}. ${u.email.split('@')[0]}</span>
+                        <span class="badge badge-sm badge-accent">${u.count}x</span>
+                    </div>
+                `).join('');
+            } else {
+                usersContainer.innerHTML = '<span class="opacity-50 text-xs">Belum ada data</span>';
+            }
+        }
+    } catch (e) {
+        console.error('Error fetching analytics:', e);
+    }
+}
