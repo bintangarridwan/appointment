@@ -85,4 +85,20 @@ async function authFetch(url, options = {}) {
     return response;
 }
 
+// Background session checker (auto-redirect if token expired)
+setInterval(async () => {
+    if (typeof myMSALObj === 'undefined') return;
+    const account = myMSALObj.getActiveAccount();
+    if (!account) return;
+    try {
+        await myMSALObj.acquireTokenSilent({
+            scopes: ['User.Read'],
+            account: account
+        });
+    } catch (e) {
+        console.warn('Session expired in background, redirecting...');
+        window.location.href = '/';
+    }
+}, 60000);
+
 initAuth();

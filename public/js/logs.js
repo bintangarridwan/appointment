@@ -1,5 +1,14 @@
 let allLogs = [];
 let currentLogFilter = 'ALL';
+let logFileSize = '';
+
+function formatBytes(bytes) {
+    if (bytes === 0 || !bytes) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 async function fetchAdminLogs() {
     const logsWrapper = document.getElementById('admin-logs-wrapper');
@@ -27,7 +36,14 @@ async function fetchAdminLogs() {
         const res = await authFetch('/api/logs');
         if (!res.ok) throw new Error('Gagal memuat log');
         
-        allLogs = await res.json();
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            allLogs = data;
+            logFileSize = '';
+        } else {
+            allLogs = data.logs || [];
+            logFileSize = data.size ? formatBytes(data.size) : '';
+        }
         renderLogs();
     } catch (error) {
         loading.classList.add('hidden');
@@ -93,7 +109,9 @@ function renderLogs() {
     const paginatedLogs = filtered.slice(startIdx, endIdx);
 
     if (info) {
-        info.innerText = `Menampilkan ${startIdx + 1}-${Math.min(endIdx, filtered.length)} dari ${filtered.length} log`;
+        let text = `Menampilkan ${startIdx + 1}-${Math.min(endIdx, filtered.length)} dari ${filtered.length} log`;
+        if (logFileSize) text += ` | File size: ${logFileSize}`;
+        info.innerText = text;
     }
 
     if (pagination) {

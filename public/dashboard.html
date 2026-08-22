@@ -336,13 +336,18 @@
         </div>
         <!-- Admin Activity Logs -->
         <div class="card bg-base-100 shadow-xl p-4 mt-6 hidden shrink-0" id="admin-logs-wrapper">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <h4 class="font-bold flex items-center gap-2"><i data-lucide="clipboard-list"></i> Activity Logs (Admin)</h4>
-                <div class="join">
-                    <button class="join-item btn btn-sm btn-active" onclick="filterLogs('ALL')" id="filter-all">All</button>
-                    <button class="join-item btn btn-sm" onclick="filterLogs('LOGIN')" id="filter-login">Login</button>
-                    <button class="join-item btn btn-sm" onclick="filterLogs('SUCCESS')" id="filter-success">Success</button>
-                    <button class="join-item btn btn-sm" onclick="filterLogs('FAILED')" id="filter-failed">Failed</button>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-sm btn-outline" onclick="fetchAdminLogs()" title="Refresh Logs">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    </button>
+                    <div class="join">
+                        <button class="join-item btn btn-sm btn-active" onclick="filterLogs('ALL')" id="filter-all">All</button>
+                        <button class="join-item btn btn-sm" onclick="filterLogs('LOGIN')" id="filter-login">Login</button>
+                        <button class="join-item btn btn-sm" onclick="filterLogs('SUCCESS')" id="filter-success">Success</button>
+                        <button class="join-item btn btn-sm" onclick="filterLogs('FAILED')" id="filter-failed">Failed</button>
+                    </div>
                 </div>
             </div>
             <div class="overflow-x-auto max-h-96 overflow-y-auto">

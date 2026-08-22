@@ -24,14 +24,18 @@ async function writeLog(email, action, status, message) {
 async function getLogs() {
     try {
         const client = await getGraphClient();
-        // Get rows from the table
-        const res = await client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}/workbook/tables/${TABLE_NAME}/rows`).get();
+        // Get rows from the table and file metadata concurrently
+        const [res, itemRes] = await Promise.all([
+            client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}/workbook/tables/${TABLE_NAME}/rows`).get(),
+            client.api(`/sites/${SITE_ID}/drive/items/${FILE_ID}`).select('size').get().catch(() => ({ size: null }))
+        ]);
         
+        let logs = [];
         if (res && res.value) {
             // Map rows back to objects. Headers: Waktu, Email, Aksi, Status, Pesan_Eror
             // We read them backwards to get newest first
             const rows = res.value.reverse();
-            return rows.map(r => {
+            logs = rows.map(r => {
                 return {
                     time: r.values[0][0],
                     email: r.values[0][1],
@@ -41,10 +45,10 @@ async function getLogs() {
                 };
             }).filter(log => log.time); // filter out empty rows
         }
-        return [];
+        return { logs, size: itemRes.size };
     } catch (e) {
         console.error("Fetch log error:", e.message);
-        return [];
+        return { logs: [], size: null };
     }
 }
 
