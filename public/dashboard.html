@@ -27,6 +27,13 @@
     <p class="text-sm opacity-70">Please wait.</p>
 </div>
 
+<!-- Process Loader Overlay -->
+<div id="process-loader" class="fixed inset-0 z-[60] bg-base-200/80 flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 hidden [&.modal-open]:flex [&.modal-open]:opacity-100 [&.modal-open]:pointer-events-auto">
+    <span class="loading loading-spinner loading-lg text-primary mb-4"></span>
+    <h3 class="text-lg font-bold">Please wait</h3>
+    <p class="text-sm opacity-70">Mohon Tunggu</p>
+</div>
+
 <!-- Event Detail Modal -->
 <div id="eventModal" class="modal">
     <div class="modal-box">
@@ -38,11 +45,96 @@
             <div class="grid grid-cols-3"><strong class="col-span-1">Room</strong><span id="modalRoom" class="col-span-2"></span></div>
             <div class="grid grid-cols-3"><strong class="col-span-1">Attendees</strong><span id="modalAttendees" class="col-span-2"></span></div>
         </div>
-        <div class="modal-action">
-            <button class="btn btn-error w-full" id="btnCancelMeeting">Cancel Meeting</button>
+        <div class="modal-action flex items-center justify-between gap-2">
+            <button class="btn btn-primary flex-1" id="btnEditMenu">Edit</button>
+            <button class="btn btn-error flex-1" id="btnCancelMeeting">Cancel Meeting</button>
         </div>
     </div>
     <div class="modal-backdrop" onclick="closeEventModal()"></div>
+</div>
+
+<!-- Edit Choice Modal -->
+<div id="editChoiceModal" class="modal">
+    <div class="modal-box max-w-sm">
+        <h3 class="font-bold text-lg mb-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <button class="btn btn-sm btn-circle btn-ghost mr-2" onclick="document.getElementById('editChoiceModal').classList.remove('modal-open'); document.getElementById('eventModal').classList.add('modal-open');">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                Edit Options
+            </div>
+            <button class="btn btn-sm btn-circle btn-ghost" onclick="document.getElementById('editChoiceModal').classList.remove('modal-open')">✕</button>
+        </h3>
+        <ul class="menu bg-base-200 w-full rounded-box p-2 gap-2">
+            <li><a id="btnEditAttendeesOption" class="text-base py-3"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Edit Attendees</a></li>
+            <li><a id="btnEditTimeOption" class="text-base py-3"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Edit Time</a></li>
+        </ul>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('editChoiceModal').classList.remove('modal-open')"></div>
+</div>
+
+<!-- Edit Time Modal -->
+<div id="editTimeModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <button class="btn btn-sm btn-circle btn-ghost mr-2" onclick="document.getElementById('editTimeModal').classList.remove('modal-open'); document.getElementById('editChoiceModal').classList.add('modal-open');">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                Edit Time
+            </div>
+            <button class="btn btn-sm btn-circle btn-ghost" onclick="document.getElementById('editTimeModal').classList.remove('modal-open')">✕</button>
+        </h3>
+        
+        <div class="form-control w-full mb-4">
+            <label class="label"><span class="label-text">Date</span></label>
+            <input type="date" id="editDate" class="input input-bordered w-full" disabled />
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="form-control">
+                <label class="label"><span class="label-text">Start Time</span></label>
+                <input type="time" id="editStartTime" class="input input-bordered w-full" />
+            </div>
+            <div class="form-control">
+                <label class="label"><span class="label-text">End Time</span></label>
+                <input type="time" id="editEndTime" class="input input-bordered w-full" />
+            </div>
+        </div>
+        
+        <div class="modal-action">
+            <button class="btn btn-primary" id="btnSaveTime">Save Time</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('editTimeModal').classList.remove('modal-open')"></div>
+</div>
+
+<!-- Edit Meetings Modal -->
+<div id="editAttendeesModal" class="modal">
+    <div class="modal-box overflow-visible">
+        <h3 class="font-bold text-lg mb-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <button class="btn btn-sm btn-circle btn-ghost mr-2" onclick="document.getElementById('editAttendeesModal').classList.remove('modal-open'); document.getElementById('editChoiceModal').classList.add('modal-open');">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                Edit Attendees
+            </div>
+            <button class="btn btn-sm btn-circle btn-ghost" onclick="document.getElementById('editAttendeesModal').classList.remove('modal-open')">✕</button>
+        </h3>
+        
+        <div class="form-control w-full mb-4 relative">
+            <label class="label p-1"><span class="label-text text-xs font-medium">Attendees</span></label>
+            <div class="input input-bordered w-full flex flex-wrap items-start gap-1 p-1 focus-within:outline focus-within:outline-2 focus-within:outline-base-content/20" id="edit-attendees-container" style="height: auto; min-height: 2.5rem; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
+                <div id="edit-attendees-chips" style="display: contents;"></div>
+                <input type="email" id="editAttendeesInput" class="flex-1 bg-transparent outline-none border-none min-w-[120px] text-sm h-8 mt-0.5" placeholder="email@domain.com" autocomplete="off">
+            </div>
+            <div id="edit-attendees-autocomplete" class="absolute z-50 bg-base-100 shadow-lg border border-base-300 rounded-box max-h-48 overflow-y-auto hidden mt-1"></div>
+        </div>
+        
+        <div class="modal-action">
+            <button class="btn btn-primary w-full" id="btnSaveAttendees">Save Changes</button>
+        </div>
+    </div>
+    <div class="modal-backdrop" onclick="document.getElementById('editAttendeesModal').classList.remove('modal-open')"></div>
 </div>
 
 <!-- Confirm Cancel Modal -->

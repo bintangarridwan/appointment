@@ -59,6 +59,7 @@ exports.getAllEvents = async (req, res) => {
                         attendeeCount: e.attendees ? e.attendees.filter(a => a.type !== 'resource').length : 0,
                         attendeesList: e.attendees ? e.attendees.filter(a => a.type !== 'resource').map(a => ({
                             name: a.emailAddress.name || a.emailAddress.address,
+                            email: a.emailAddress.address,
                             status: a.status ? a.status.response : 'unknown'
                         })) : [],
                         type: e.type,
@@ -327,6 +328,151 @@ exports.deleteEvent = async (req, res) => {
         console.error('Error canceling event:', error.message);
         const userEmail = req.user ? (req.user.preferred_username || req.user.email) : 'Unknown';
         writeLog(userEmail, "CANCEL", "FAILED", error.message);
+        res.status(500).send(error.message);
+    }
+};
+
+exports.updateEvent = async (req, res) => {
+    try {
+        const userEmail = req.user ? (req.user.preferred_username || req.user.upn || req.user.email || '') : '';
+        if (!userEmail) {
+            return res.status(401).json({ error: 'Unauthorized: User email not found in token' });
+        }
+        const client = await getGraphClient();
+        const { roomEmail, eventId } = req.params;
+        const { attendees, start, end } = req.body;
+
+        const event = await client.api(`/users/${roomEmail}/events/${eventId}`)
+            .select('organizer,attendees,iCalUId,subject,start,end')
+            .get();
+
+        const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
+
+        if (actualOrganizer !== userEmail.toLowerCase()) {
+            return res.status(403).json({ error: 'Hanya organizer yang bisa mengedit meeting ini' });
+        }
+        
+        let patchData = {};
+
+        // 1. Process attendees if provided (even empty string clears them)
+        if (attendees !== undefined) {
+            let newAttendees = [];
+            const roomAttendee = event.attendees.find(a => a.type === 'resource' || a.emailAddress.address.toLowerCase() === roomEmail.toLowerCase());
+            if (roomAttendee) newAttendees.push(roomAttendee);
+            else newAttendees.push({ emailAddress: { address: roomEmail }, type: 'resource' });
+
+            if (attendees) {
+                const extraEmails = attendees.split(',').map(e => e.trim()).filter(e => e);
+                extraEmails.forEach(email => {
+                    if (email.toLowerCase() !== actualOrganizer && email.toLowerCase() !== roomEmail.toLowerCase()) {
+                        newAttendees.push({
+                            emailAddress: { address: email },
+                            type: 'required'
+                        });
+                    }
+                });
+            }
+            patchData.attendees = newAttendees;
+        }
+
+        // 2. Process time if provided
+        if (start && end) {
+            // Validate weekend
+            const { data: settingData } = await supabase
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'allow_weekend_booking')
+                .single();
+            const allowWeekend = settingData ? (settingData.value === true || settingData.value === 'true') : true;
+
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            
+            if (!allowWeekend) {
+                const day = startDate.getDay();
+                if (day === 0 || day === 6) {
+                    return res.status(400).json({ error: "Pemesanan dibatalkan: Admin sedang menutup akses pemesanan untuk hari Sabtu dan Minggu." });
+                }
+            }
+
+            // Validate room locks
+            const { data: locks, error: lockErr } = await supabase
+                .from('room_locks')
+                .select('*')
+                .eq('room_email', roomEmail)
+                .lt('start_time', end)
+                .gt('end_time', start);
+
+            if (!lockErr && locks && locks.length > 0) {
+                const errorMsg = `Pemesanan dibatalkan: Ruangan sedang dikunci oleh Admin. Alasan: ${locks[0].reason}`;
+                return res.status(400).json({ error: errorMsg });
+            }
+
+            // Validate overlaps
+            const overlapRes = await client.api(`/users/${roomEmail}/calendarView`)
+                .query({ startDateTime: start, endDateTime: end })
+                .select('id,subject,start,end,seriesMasterId')
+                .top(999)
+                .get();
+
+            const existingEvents = overlapRes.value || [];
+            const conflicts = [];
+            
+            for (let ev of existingEvents) {
+                if (ev.id === eventId || ev.seriesMasterId === eventId) continue;
+                
+                const evStart = new Date(ev.start.dateTime + 'Z');
+                const evEnd = new Date(ev.end.dateTime + 'Z');
+                
+                if (startDate < evEnd && endDate > evStart) {
+                    conflicts.push({ date: startDate, subject: ev.subject });
+                }
+            }
+
+            if (conflicts.length > 0) {
+                const errorMsg = `Gagal update: Ruangan sudah terpakai oleh meeting "${conflicts[0].subject}" pada waktu tersebut.`;
+                return res.status(400).json({ error: errorMsg });
+            }
+
+            const startNoZ = start.replace('Z', '');
+            const endNoZ = end.replace('Z', '');
+            patchData.start = { dateTime: startNoZ, timeZone: 'UTC' };
+            patchData.end = { dateTime: endNoZ, timeZone: 'UTC' };
+        }
+
+        if (Object.keys(patchData).length === 0) {
+            return res.status(400).json({ error: "Tidak ada data yang diubah" });
+        }
+
+        if (actualOrganizer && event.iCalUId) {
+            const orgEventRes = await client.api(`/users/${actualOrganizer}/events`)
+                .filter(`iCalUId eq '${event.iCalUId}'`)
+                .select('id')
+                .get();
+
+            if (orgEventRes.value && orgEventRes.value.length > 0) {
+                const orgEventId = orgEventRes.value[0].id;
+                try {
+                    await client.api(`/users/${actualOrganizer}/events/${orgEventId}`).patch(patchData);
+                } catch (e) {
+                    console.log("Failed to patch organizer event:", e.message);
+                }
+            }
+        }
+
+        try {
+            await client.api(`/users/${roomEmail}/events/${eventId}`).patch(patchData);
+        } catch (e) {
+            console.log("Failed to patch room event:", e.message);
+        }
+        
+        writeLog(userEmail, "UPDATE", "SUCCESS", `Memperbarui event '${event.subject}' di ${roomEmail}`);
+        res.status(200).json({ message: 'Event updated successfully' });
+
+    } catch (error) {
+        console.error('Error updating event:', error.message);
+        const userEmail = req.user ? (req.user.preferred_username || req.user.email) : 'Unknown';
+        writeLog(userEmail, "UPDATE", "FAILED", error.message);
         res.status(500).send(error.message);
     }
 };

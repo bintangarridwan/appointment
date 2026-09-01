@@ -226,6 +226,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                     }).join('');
                 }
                 document.getElementById('modalAttendees').innerHTML = attendeesHtml;
+
+                const activeAccount = typeof myMSALObj !== 'undefined' ? myMSALObj.getActiveAccount() : null;
+                const currentUserEmail = activeAccount ? activeAccount.username.toLowerCase() : '';
+                const organizerEmail = event.extendedProps.organizerEmail?.toLowerCase() || '';
+
+                if (currentUserEmail === organizerEmail) {
+                    document.getElementById('btnEditMenu').parentElement.style.display = '';
+                    document.getElementById('btnCancelMeeting').style.display = '';
+                } else {
+                    document.getElementById('btnEditMenu').parentElement.style.display = 'none';
+                    document.getElementById('btnCancelMeeting').style.display = 'none';
+                }
                 
                 document.getElementById('eventModal').classList.add('modal-open');
             },
@@ -301,6 +313,303 @@ document.addEventListener('DOMContentLoaded', async function() {
                 setTimeout(() => { window.location.reload(); }, 1500);
             })
             .catch(err => {
+                console.error(err);
+                showToast(err.message, "error");
+            });
+        });
+
+        let editAttendeesList = [];
+        
+        function renderEditChips() {
+            const container = document.getElementById('edit-attendees-chips');
+            container.innerHTML = '';
+            editAttendeesList.forEach((att, index) => {
+                let displayName = att.name && att.name !== att.email ? att.name : att.email;
+                if (displayName && displayName.includes('@')) {
+                    displayName = displayName.split('@')[0];
+                }
+                const wrapper = document.createElement('div');
+                wrapper.className = 'indicator mr-2 mb-2 mt-1';
+                wrapper.innerHTML = `
+                    <button type="button" class="indicator-item indicator-top indicator-end badge badge-error badge-sm w-4 h-4 p-0 text-white border-none cursor-pointer" data-index="${index}">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                    </button>
+                    <div class="badge badge-outline border-black text-black p-3 text-xs" title="${att.email}">${displayName}</div>
+                `;
+                container.appendChild(wrapper);
+            });
+            
+            container.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.currentTarget.getAttribute('data-index');
+                    editAttendeesList.splice(idx, 1);
+                    renderEditChips();
+                });
+            });
+            if (window.lucide) { lucide.createIcons(); }
+        }
+
+        const editInput = document.getElementById('editAttendeesInput');
+
+        let editAttDebounceTimer;
+        const editAttAutoList = document.getElementById('edit-attendees-autocomplete');
+
+        if (editInput && editAttAutoList) {
+            editInput.addEventListener('input', function() {
+                clearTimeout(editAttDebounceTimer);
+                const currentQuery = this.value.trim();
+
+                if (!currentQuery || currentQuery.length < 2) {
+                    editAttAutoList.style.display = 'none';
+                    editAttAutoList.classList.add('hidden');
+                    return;
+                }
+                
+                editAttDebounceTimer = setTimeout(async () => {
+                    try {
+                        const res = await authFetch(`/api/users/search?q=${encodeURIComponent(currentQuery)}`);
+                        const users = await res.json();
+                        
+                        editAttAutoList.innerHTML = '';
+                        
+                        if (users.length > 0) {
+                            users.forEach(u => {
+                                const div = document.createElement('div');
+                                div.className = 'p-2 border-b cursor-pointer hover:bg-base-200 text-sm';
+                                div.innerHTML = `<b>${u.name}</b><br><small>${u.email}</small>`;
+                                div.addEventListener('click', () => {
+                                    const isDuplicate = editAttendeesList.some(e => {
+                                        const existingEmail = (e.email || e.name || '').toLowerCase();
+                                        const existingName = (e.name || '').toLowerCase();
+                                        const newEmail = (u.email || '').toLowerCase();
+                                        const newName = (u.name || '').toLowerCase();
+                                        return (existingEmail === newEmail) || (existingName && newName && existingName === newName);
+                                    });
+                                    const orgEmail = (currentEventContext && currentEventContext.extendedProps.organizerEmail) ? currentEventContext.extendedProps.organizerEmail.toLowerCase() : '';
+                                    if (orgEmail === (u.email || '').toLowerCase()) {
+                                        if (typeof showToast !== 'undefined') showToast("Organizer sudah ada di meeting ini", "error");
+                                    } else if (!isDuplicate) {
+                                        editAttendeesList.push({ email: u.email, name: u.name });
+                                        renderEditChips();
+                                    } else {
+                                        if (typeof showToast !== 'undefined') showToast("Orang ini sudah ada di daftar attendees", "error");
+                                    }
+                                    editInput.value = '';
+                                    editAttAutoList.style.display = 'none';
+                                    editAttAutoList.classList.add('hidden');
+                                    editInput.focus();
+                                });
+                                editAttAutoList.appendChild(div);
+                            });
+                            editAttAutoList.style.display = 'block';
+                            editAttAutoList.classList.remove('hidden');
+                            
+                            const container = document.getElementById('edit-attendees-container');
+                            if (container) {
+                                editAttAutoList.style.width = container.offsetWidth + 'px';
+                                editAttAutoList.style.top = (container.offsetTop + container.offsetHeight) + 'px';
+                                editAttAutoList.style.left = container.offsetLeft + 'px';
+                            }
+                        } else {
+                            editAttAutoList.style.display = 'none';
+                            editAttAutoList.classList.add('hidden');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }, 300);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (e.target !== editInput) {
+                    editAttAutoList.style.display = 'none';
+                    editAttAutoList.classList.add('hidden');
+                }
+            });
+        }
+
+        editInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const val = editInput.value.trim().replace(/,$/, '');
+                if (val && validateEmail(val)) {
+                    const isDuplicate = editAttendeesList.some(e => {
+                        const existingEmail = (e.email || e.name || '').toLowerCase();
+                        const existingName = (e.name || '').toLowerCase();
+                        const newVal = val.toLowerCase();
+                        return (existingEmail === newVal) || (existingName === newVal);
+                    });
+                    const orgEmail = (currentEventContext && currentEventContext.extendedProps.organizerEmail) ? currentEventContext.extendedProps.organizerEmail.toLowerCase() : '';
+                    if (orgEmail === val.toLowerCase()) {
+                        if (typeof showToast !== 'undefined') showToast("Organizer sudah ada di meeting ini", "error");
+                    } else if (!isDuplicate) {
+                        editAttendeesList.push({ email: val, name: val });
+                        editInput.value = '';
+                        renderEditChips();
+                    } else {
+                        if (typeof showToast !== 'undefined') showToast("Email sudah ada di daftar attendees", "error");
+                    }
+                } else if (val && !validateEmail(val)) {
+                    if (typeof showToast !== 'undefined') showToast("Email tidak valid", "error");
+                }
+            } else if (e.key === 'Backspace' && editInput.value === '' && editAttendeesList.length > 0) {
+                editAttendeesList.pop();
+                renderEditChips();
+            }
+        });
+        
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(String(email).toLowerCase());
+        }
+
+        document.getElementById('btnEditMenu').addEventListener('click', () => {
+            document.getElementById('eventModal').classList.remove('modal-open');
+            document.getElementById('editChoiceModal').classList.add('modal-open');
+        });
+
+        document.getElementById('btnEditAttendeesOption').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            
+            document.getElementById('editChoiceModal').classList.remove('modal-open');
+            
+            // Extract current attendees
+            const attendeesList = event.extendedProps.attendeesList || [];
+            const roomEmail = event.extendedProps.roomEmail;
+            const organizerEmail = event.extendedProps.organizerEmail;
+            
+            // Filter out room and organizer to get only extra attendees
+            const extraEmails = attendeesList
+                .filter(a => {
+                    const e = a.email || a.name;
+                    return e.toLowerCase() !== roomEmail.toLowerCase() && e.toLowerCase() !== organizerEmail?.toLowerCase();
+                })
+                .map(a => ({ email: a.email, name: a.name || a.email }));
+            
+            editAttendeesList = [...extraEmails];
+            renderEditChips();
+            editInput.value = '';
+            
+            document.getElementById('editAttendeesModal').classList.add('modal-open');
+        });
+
+        document.getElementById('btnSaveAttendees').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            // Also grab any lingering text in the input
+            const lingering = editInput.value.trim();
+            const isDuplicate = editAttendeesList.some(e => {
+                const existingEmail = (e.email || e.name || '').toLowerCase();
+                const existingName = (e.name || '').toLowerCase();
+                const newVal = lingering.toLowerCase();
+                return (existingEmail === newVal) || (existingName === newVal);
+            });
+            const orgEmail = (currentEventContext && currentEventContext.extendedProps.organizerEmail) ? currentEventContext.extendedProps.organizerEmail.toLowerCase() : '';
+            if (lingering && validateEmail(lingering) && orgEmail !== lingering.toLowerCase() && !isDuplicate) {
+                editAttendeesList.push({ email: lingering, name: lingering });
+                editInput.value = '';
+                renderEditChips();
+            }
+
+            const event = currentEventContext;
+            const eventId = event.extendedProps.seriesMasterId || event.id;
+            const roomEmail = event.extendedProps.roomEmail;
+            const attendeesStr = editAttendeesList.map(a => a.email || a.name).join(', ');
+
+            document.getElementById('editAttendeesModal').classList.remove('modal-open');
+            document.getElementById('process-loader').classList.add('modal-open');
+
+            authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ attendees: attendeesStr })
+            })
+            .then(async res => {
+                document.getElementById('process-loader').classList.remove('modal-open');
+                if (res.status === 403) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(data.error || "Akses ditolak! Hanya Organizer yang dapat mengedit meeting ini.", "error");
+                    return;
+                }
+                if (!res.ok) {
+                    return res.text().then(text => { throw new Error(text) });
+                }
+                showToast("Attendees berhasil diperbarui! Sedang sinkronisasi...", "success");
+                setTimeout(() => {
+                    calendar.refetchEvents();
+                }, 3000);
+            })
+            .catch(err => {
+                document.getElementById('process-loader').classList.remove('modal-open');
+                console.error(err);
+                showToast(err.message, "error");
+            });
+        });
+
+        document.getElementById('btnEditTimeOption').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            document.getElementById('editChoiceModal').classList.remove('modal-open');
+            
+            const startDate = new Date(event.start);
+            const endDate = event.end ? new Date(event.end) : new Date(startDate.getTime() + 60*60*1000);
+            
+            const pad = (n) => n.toString().padStart(2, '0');
+            const dateStr = `${startDate.getFullYear()}-${pad(startDate.getMonth()+1)}-${pad(startDate.getDate())}`;
+            const startTimeStr = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+            const endTimeStr = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+            
+            document.getElementById('editDate').value = dateStr;
+            document.getElementById('editStartTime').value = startTimeStr;
+            document.getElementById('editEndTime').value = endTimeStr;
+            
+            document.getElementById('editTimeModal').classList.add('modal-open');
+        });
+
+        document.getElementById('btnSaveTime').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            const eventId = event.extendedProps.seriesMasterId || event.id;
+            const roomEmail = event.extendedProps.roomEmail;
+            
+            const dateStr = document.getElementById('editDate').value;
+            const startStr = document.getElementById('editStartTime').value;
+            const endStr = document.getElementById('editEndTime').value;
+            
+            if (!dateStr || !startStr || !endStr) {
+                showToast("Tanggal dan jam harus diisi", "error");
+                return;
+            }
+            
+            const startIso = new Date(`${dateStr}T${startStr}:00`).toISOString();
+            const endIso = new Date(`${dateStr}T${endStr}:00`).toISOString();
+            
+            document.getElementById('editTimeModal').classList.remove('modal-open');
+            document.getElementById('process-loader').classList.add('modal-open');
+            
+            authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start: startIso, end: endIso })
+            })
+            .then(async res => {
+                document.getElementById('process-loader').classList.remove('modal-open');
+                if (res.status === 403) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(data.error || "Akses ditolak!", "error");
+                    return;
+                }
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Gagal mengupdate waktu");
+                }
+                showToast("Waktu meeting berhasil diperbarui! Sedang sinkronisasi...", "success");
+                setTimeout(() => {
+                    calendar.refetchEvents();
+                }, 3000);
+            })
+            .catch(err => {
+                document.getElementById('process-loader').classList.remove('modal-open');
                 console.error(err);
                 showToast(err.message, "error");
             });

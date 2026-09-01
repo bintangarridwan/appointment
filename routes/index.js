@@ -15,6 +15,7 @@ router.get('/config', roomController.getConfig);
 router.get('/events', roomController.getAllEvents);
 router.post('/rooms/:id/book', bookingLimiter, roomController.bookRoom);
 router.delete('/events/:roomEmail/:eventId', roomController.deleteEvent);
+router.patch('/events/:roomEmail/:eventId', roomController.updateEvent);
 
 const logController = require('../controllers/logController');
 const adminController = require('../controllers/adminController');
