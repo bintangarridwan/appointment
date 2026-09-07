@@ -198,10 +198,7 @@ async function fetchAdminUsers() {
                             <span class="text-[10px] opacity-50">Added on: ${new Date(admin.created_at).toLocaleDateString()}</span>
                         </div>
                     </div>
-                    ${admin.email !== 'bintang.arridwan@citarasakuliner.com' ? 
-                        `<button class="btn btn-xs btn-ghost text-error" onclick="deleteAdminUser('${admin.email}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : 
-                        `<span class="badge badge-primary badge-sm">Super Admin</span>`
-                    }
+                    <button class="btn btn-xs btn-ghost text-error" onclick="deleteAdminUser('${admin.email}')"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </li>
             `).join('');
             if (window.lucide) window.lucide.createIcons();

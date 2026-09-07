@@ -231,12 +231,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const currentUserEmail = activeAccount ? activeAccount.username.toLowerCase() : '';
                 const organizerEmail = event.extendedProps.organizerEmail?.toLowerCase() || '';
 
-                if (currentUserEmail === organizerEmail) {
+                if (currentUserEmail === organizerEmail || window.isAdmin) {
                     document.getElementById('btnEditMenu').parentElement.style.display = '';
                     document.getElementById('btnCancelMeeting').style.display = '';
                 } else {
                     document.getElementById('btnEditMenu').parentElement.style.display = 'none';
                     document.getElementById('btnCancelMeeting').style.display = 'none';
+                }
+
+                if (window.isAdmin) {
+                    document.getElementById('btnEditSubjectOption').parentElement.classList.remove('hidden');
+                    document.getElementById('btnEditSubjectOption').classList.remove('hidden');
+                } else {
+                    document.getElementById('btnEditSubjectOption').parentElement.classList.add('hidden');
+                    document.getElementById('btnEditSubjectOption').classList.add('hidden');
                 }
                 
                 document.getElementById('eventModal').classList.add('modal-open');
@@ -604,6 +612,58 @@ document.addEventListener('DOMContentLoaded', async function() {
                     throw new Error(data.error || "Gagal mengupdate waktu");
                 }
                 showToast("Waktu meeting berhasil diperbarui! Sedang sinkronisasi...", "success");
+                setTimeout(() => {
+                    calendar.refetchEvents();
+                }, 3000);
+            })
+            .catch(err => {
+                document.getElementById('process-loader').classList.remove('modal-open');
+                console.error(err);
+                showToast(err.message, "error");
+            });
+        });
+
+        document.getElementById('btnEditSubjectOption').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            document.getElementById('editChoiceModal').classList.remove('modal-open');
+            document.getElementById('editSubjectInput').value = event.title;
+            document.getElementById('editSubjectModal').classList.add('modal-open');
+        });
+
+        document.getElementById('btnSaveSubject').addEventListener('click', () => {
+            if (!currentEventContext) return;
+            const event = currentEventContext;
+            const eventId = event.extendedProps.seriesMasterId || event.id;
+            const roomEmail = event.extendedProps.roomEmail;
+            
+            const newSubject = document.getElementById('editSubjectInput').value.trim();
+            
+            if (!newSubject) {
+                showToast("Subject tidak boleh kosong", "error");
+                return;
+            }
+            
+            document.getElementById('editSubjectModal').classList.remove('modal-open');
+            document.getElementById('process-loader').classList.add('modal-open');
+            
+            authFetch(`/api/events/${encodeURIComponent(roomEmail)}/${encodeURIComponent(eventId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subject: newSubject })
+            })
+            .then(async res => {
+                document.getElementById('process-loader').classList.remove('modal-open');
+                if (res.status === 403) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(data.error || "Akses ditolak!", "error");
+                    return;
+                }
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || "Gagal mengupdate subject");
+                }
+                showToast("Subject meeting berhasil diperbarui! Sedang sinkronisasi...", "success");
                 setTimeout(() => {
                     calendar.refetchEvents();
                 }, 3000);

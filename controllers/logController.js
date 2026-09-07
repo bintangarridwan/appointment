@@ -3,8 +3,8 @@ const { writeLog, getLogs } = require('../services/logService');
 exports.getLogsList = async (req, res) => {
     try {
         const userEmail = req.user ? (req.user.preferred_username || req.user.upn || req.user.email || '') : '';
-        if (userEmail.toLowerCase() !== 'bintang.arridwan@citarasakuliner.com') {
-            return res.status(403).json({ error: 'Hanya Admin yang dapat melihat log' });
+        if (!userEmail) {
+            return res.status(403).json({ error: 'Unauthorized' });
         }
         const logs = await getLogs();
         res.json(logs);

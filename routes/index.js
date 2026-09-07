@@ -3,7 +3,8 @@ const router = express.Router();
 
 const roomController = require('../controllers/roomController');
 const userController = require('../controllers/userController');
-const { publicGetMiddleware } = require('../middlewares/auth');
+const { publicGetMiddleware, authMiddleware } = require('../middlewares/auth');
+const { adminMiddleware } = require('../middlewares/admin');
 const { bookingLimiter, apiLimiter } = require('../config/limiter');
 
 router.use(apiLimiter);
@@ -24,22 +25,22 @@ router.get('/users/search', userController.searchUsers);
 router.post('/users/schedule', userController.getSchedule);
 router.get('/users/directory', userController.getDirectory);
 
-router.get('/logs', logController.getLogsList);
+router.get('/logs', adminMiddleware, logController.getLogsList);
 router.post('/logs/login', logController.logLogin);
 
 // Admin / Settings Routes
 router.get('/settings/weekend', adminController.getWeekendSetting);
-router.post('/settings/weekend', adminController.toggleWeekendSetting);
+router.post('/settings/weekend', authMiddleware, adminMiddleware, adminController.toggleWeekendSetting);
 router.get('/settings/locks', adminController.getRoomLocks);
-router.post('/settings/locks', adminController.addRoomLock);
-router.delete('/settings/locks/:id', adminController.deleteRoomLock);
+router.post('/settings/locks', authMiddleware, adminMiddleware, adminController.addRoomLock);
+router.delete('/settings/locks/:id', authMiddleware, adminMiddleware, adminController.deleteRoomLock);
 
 // Admin Users Routes
-router.get('/settings/admins/check', adminController.checkAdminStatus);
-router.get('/settings/admins', adminController.getAdminUsers);
-router.post('/settings/admins', adminController.addAdminUser);
-router.delete('/settings/admins/:email', adminController.deleteAdminUser);
+router.get('/settings/admins/check', authMiddleware, adminController.checkAdminStatus);
+router.get('/settings/admins', authMiddleware, adminMiddleware, adminController.getAdminUsers);
+router.post('/settings/admins', authMiddleware, adminMiddleware, adminController.addAdminUser);
+router.delete('/settings/admins/:email', authMiddleware, adminMiddleware, adminController.deleteAdminUser);
 
-router.get('/analytics', adminController.getAnalytics);
+router.get('/analytics', adminMiddleware, adminController.getAnalytics);
 
 module.exports = router;

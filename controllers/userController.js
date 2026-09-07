@@ -23,7 +23,6 @@ exports.searchUsers = async (req, res) => {
         } catch (graphError) {
             console.error("Graph API search error:", graphError.message);
             const mockUsers = [
-                { name: 'Bintang Arridwan', email: 'bintang.arridwan@citarasakuliner.com' },
                 { name: 'Admin Room', email: 'admin@citarasakuliner.com' }
             ];
             users = mockUsers.filter(u => 

@@ -294,7 +294,13 @@ exports.deleteEvent = async (req, res) => {
             .get();
 
         const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
-        const isAdmin = userEmail.toLowerCase() === 'bintang.arridwan@citarasakuliner.com';
+        let isAdmin = false;
+        const { data: adminData } = await supabase
+            .from('admin_users')
+            .select('email')
+            .eq('email', userEmail.toLowerCase())
+            .single();
+        isAdmin = !!adminData;
 
         if (actualOrganizer !== userEmail.toLowerCase() && !isAdmin) {
             return res.status(403).json({ error: 'Hanya organizer atau Admin yang bisa membatalkan meeting ini' });
@@ -340,7 +346,7 @@ exports.updateEvent = async (req, res) => {
         }
         const client = await getGraphClient();
         const { roomEmail, eventId } = req.params;
-        const { attendees, start, end } = req.body;
+        const { attendees, start, end, subject } = req.body;
 
         const event = await client.api(`/users/${roomEmail}/events/${eventId}`)
             .select('organizer,attendees,iCalUId,subject,start,end')
@@ -348,8 +354,16 @@ exports.updateEvent = async (req, res) => {
 
         const actualOrganizer = event.organizer?.emailAddress?.address?.toLowerCase();
 
-        if (actualOrganizer !== userEmail.toLowerCase()) {
-            return res.status(403).json({ error: 'Hanya organizer yang bisa mengedit meeting ini' });
+        let isAdmin = false;
+        const { data: adminData } = await supabase
+            .from('admin_users')
+            .select('email')
+            .eq('email', userEmail.toLowerCase())
+            .single();
+        isAdmin = !!adminData;
+
+        if (actualOrganizer !== userEmail.toLowerCase() && !isAdmin) {
+            return res.status(403).json({ error: 'Hanya organizer atau Admin yang bisa mengedit meeting ini' });
         }
         
         let patchData = {};
@@ -439,7 +453,13 @@ exports.updateEvent = async (req, res) => {
             patchData.start = { dateTime: startNoZ, timeZone: 'UTC' };
             patchData.end = { dateTime: endNoZ, timeZone: 'UTC' };
         }
-
+        
+        if (subject) {
+            if (!isAdmin) {
+                return res.status(403).json({ error: 'Hanya Admin yang bisa mengubah subject meeting' });
+            }
+            patchData.subject = subject;
+        }
         if (Object.keys(patchData).length === 0) {
             return res.status(400).json({ error: "Tidak ada data yang diubah" });
         }

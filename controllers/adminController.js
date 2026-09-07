@@ -85,10 +85,7 @@ exports.checkAdminStatus = async (req, res) => {
         const email = req.user.preferred_username || req.user.username;
         if (!email) return res.status(401).json({ isAdmin: false });
         
-        // Hardcode superadmin
-        if (email.toLowerCase() === 'bintang.arridwan@citarasakuliner.com') {
-            return res.json({ isAdmin: true });
-        }
+        // Check DB
         
         const { data } = await supabase
             .from('admin_users')
@@ -112,13 +109,7 @@ exports.getAdminUsers = async (req, res) => {
             
         if (error) throw error;
         
-        // Selalu sisipkan super admin di urutan pertama walaupun tidak ada di DB
-        const admins = [
-            { email: 'bintang.arridwan@citarasakuliner.com', created_at: new Date().toISOString() },
-            ...data
-        ];
-        
-        res.json({ admins });
+        res.json({ admins: data });
     } catch (error) {
         console.error('Get admin users error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -151,9 +142,6 @@ exports.addAdminUser = async (req, res) => {
 exports.deleteAdminUser = async (req, res) => {
     try {
         const email = req.params.email;
-        if (email === 'bintang.arridwan@citarasakuliner.com') {
-            return res.status(403).json({ error: 'Cannot delete super admin' });
-        }
         
         const { error } = await supabase
             .from('admin_users')

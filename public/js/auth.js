@@ -38,6 +38,16 @@ function handleResponse(account) {
         if (orgInput && !orgInput.value) {
             orgInput.value = account.username;
         }
+        
+        // Check admin status
+        authFetch('/api/settings/admins/check')
+            .then(res => res.json())
+            .then(data => {
+                window.isAdmin = data.isAdmin;
+            })
+            .catch(() => {
+                window.isAdmin = false;
+            });
     }
 }
 
