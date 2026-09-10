@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             "Ruang Kuah LT 1": " (Maks.6 org)",
             "Ruang Beef LT 2": " (Maks.7 org)",
             "Ruang Bojot LT 3": " (Maks.7 org)",
-            "Ruang Mozza LT 3": " (Maks.25 org)"
+            "Ruang Mozza LT 3": " (Maks.20 org)"
         };
         
         const resources = rooms.map((room, index) => {
