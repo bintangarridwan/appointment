@@ -103,14 +103,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         const btn = document.getElementById('room-select-btn');
         
         const capacities = {
-            "Ruang Kuah LT 2": " (Maks.6 org)",
-            "Ruang Beef LT 2": " (Maks.6 org)",
-            "Ruang Bojot LT 3": " (Maks.6 org)",
-            "Ruang Mozza LT 3": " (Maks.20 org)"
+            "A": " (Maks.6 org)",
+            "B": " (Maks.6 org)",
+            "C": " (Maks.6 org)",
+            "D": " (Maks.20 org)"
         };
         
         const resources = rooms.map((room, index) => {
-            const displayName = room.name + (capacities[room.name] || "");
+            const displayName = room.name + (capacities[room.id] || "");
             const li = document.createElement('li');
             const a = document.createElement('a');
             a.innerText = room.name;
