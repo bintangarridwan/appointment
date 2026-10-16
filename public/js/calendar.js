@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const btn = document.getElementById('room-select-btn');
         
         const capacities = {
-            "Ruang Kuah LT 1": " (Maks.6 org)",
+            "Ruang Kuah LT 2": " (Maks.6 org)",
             "Ruang Beef LT 2": " (Maks.6 org)",
             "Ruang Bojot LT 3": " (Maks.6 org)",
             "Ruang Mozza LT 3": " (Maks.20 org)"
